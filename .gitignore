@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.test-build/
+CONTEXT.md
+*.pem
+*.key
+*.rdp
+.agents/
+.codex/

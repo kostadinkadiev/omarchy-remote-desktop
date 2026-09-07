@@ -1,0 +1,23 @@
+name: Tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  helper-and-model:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Qt test runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-declarative-dev-tools qml6-module-qttest qml6-module-qtquick qml6-module-qtqml-workerscript qml6-module-qtquick-window
+      - name: Helper security and lifecycle tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Qt JavaScript tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QPA_PLATFORMTHEME: ""
+          QT_QUICK_CONTROLS_STYLE: Basic
+        run: /usr/lib/qt6/bin/qmltestrunner -input tests/qml
+      # Full shell lint/transport checks require Omarchy and Quickshell. Run
+      # tests/check-qml on the target host; the Ubuntu job does not claim them.

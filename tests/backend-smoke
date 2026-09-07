@@ -1,0 +1,85 @@
+#!/usr/bin/python3
+"""Test an explicit backend binary; optional live check listens on localhost only."""
+import argparse
+import contextlib
+import os
+from pathlib import Path
+import secrets
+import socket
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import remote_desktop as rd
+
+parser = argparse.ArgumentParser()
+parser.add_argument("binary", type=Path)
+parser.add_argument("--live", action="store_true", help="brief localhost NLA negotiation against the current desktop")
+args = parser.parse_args()
+binary = str(args.binary.resolve())
+help_text = rd.run([binary, "--help"])
+assert all(flag in help_text for flag in rd.FLAGS), "Required backend interfaces missing"
+
+with tempfile.TemporaryDirectory(prefix="rdp-backend-smoke-") as temporary:
+    base = Path(temporary)
+    empty_config = base / "config.toml"
+    empty_config.write_text("")
+    blank = base / "blank"
+    blank.write_text("\n")
+    blank.chmod(0o600)
+    for password_file in (base / "missing", blank):
+        result = subprocess.run([binary, "--config", str(empty_config), "--username", "test-user",
+                                 "--password-file", str(password_file)], capture_output=True, timeout=5)
+        assert result.returncode != 0, "Invalid secret must prevent startup"
+    print("Backend capability, missing-password and empty-password checks passed")
+    if not args.live:
+        raise SystemExit(0)
+    live = rd.inventory()
+    assert live["outputs"], "No physical monitor to test"
+    app = rd.App(base / "config", base / "runtime")
+    rd.safe_dir(app.data, create=True)
+    rd.write_file(app.data / "password", secrets.token_urlsafe(24))
+    app.ensure_certificate()
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    conf = dict(address="127.0.0.1", port=port, output=live["outputs"][0]["name"], username="test-user", audio=False)
+    argv = app.backend_args(conf, "smoke")
+    argv[0] = binary
+    child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.monotonic() + 15
+        while not rd.child_listens(child.pid, "127.0.0.1", port):
+            assert child.poll() is None, "Backend exited before listening"
+            assert time.monotonic() < deadline, "Backend did not start listening"
+            time.sleep(0.1)
+        def negotiate(protocols):
+            with socket.create_connection(("127.0.0.1", port), timeout=3) as conn:
+                # TPKT + X.224 connection request + RDP_NEG_REQ.
+                conn.sendall(bytes.fromhex("030000130ee0000000000001000800") + struct.pack("<I", protocols))
+                data = bytearray()
+                while len(data) < 19:
+                    chunk = conn.recv(4096)
+                    if not chunk:
+                        break
+                    data.extend(chunk)
+                return bytes(data)
+        response = negotiate(3)  # TLS or NLA offered: backend must choose NLA.
+        assert len(response) >= 19 and response[-8] == 2 and struct.unpack("<I", response[-4:])[0] in (2, 8), \
+            "Backend did not require NLA"
+        response = negotiate(1)  # TLS without NLA must fail negotiation.
+        assert not response or (len(response) >= 19 and response[-8] == 3), \
+            "Unexpected non-NLA negotiation response: " + response.hex()
+        print("Localhost listener and mandatory NLA negotiation passed; no desktop session established")
+    finally:
+        if child.poll() is None:
+            child.terminate()
+            try:
+                child.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+        assert not rd.child_listens(child.pid, "127.0.0.1", port)

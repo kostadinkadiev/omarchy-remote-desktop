@@ -1,0 +1,70 @@
+#!/usr/bin/python3
+"""Lint against real Omarchy imports; exercise Qt JS and actual Quickshell pipes."""
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+root = Path(__file__).resolve().parents[1]
+env = {**os.environ, "QT_QPA_PLATFORM": "offscreen", "QT_QPA_PLATFORMTHEME": "",
+       "QT_QUICK_CONTROLS_STYLE": "Basic", "QT_STYLE_OVERRIDE": "Fusion"}
+env.pop("WAYLAND_DISPLAY", None)
+env.pop("HYPRLAND_INSTANCE_SIGNATURE", None)
+qtbin = Path("/usr/lib/qt6/bin")
+
+with tempfile.TemporaryDirectory(prefix="remote-desktop-qml-") as temporary:
+    base = Path(temporary)
+    imports = base / "imports"
+    imports.mkdir()
+    (imports / "qs").symlink_to(Path(os.environ.get("OMARCHY_PATH", "/usr/share/omarchy")) / "shell")
+    result = subprocess.run([str(qtbin / "qmllint"), "-I", str(imports), str(root / "Panel.qml"),
+                             str(root / "Service.qml")], capture_output=True, text=True)
+    # The shell injects a dynamic QObject, and Qt's exported font object is also
+    # generic. Keep those specific known warnings; reject every other warning.
+    warnings = [line for line in result.stderr.splitlines() if line.startswith(("Warning:", "Error:"))]
+    unexpected = [line for line in warnings if not any(known in line for known in
+                  ('Member "shell" not found on type "QObject"', 'Member "subtitle" not found on type "QObject"',
+                   'Type QProcess::ExitStatus of parameter exitStatus in signal called exited was not found'))]
+    if unexpected:
+        print(result.stderr)
+        raise SystemExit("QML lint failed")
+    print("QML lint passed (known dynamic shell property warnings only)")
+    subprocess.run([str(qtbin / "qmltestrunner"), "-input", str(root / "tests/qml")], env=env, check=True)
+    # Quickshell statically links its QML plugin. qmltestrunner cannot load it;
+    # run transport checks in a headless, isolated Quickshell test configuration.
+    harness = base / "harness"
+    harness.mkdir()
+    for name in ("lib", "bin"):
+        shutil.copytree(root / name, harness / name, ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copy2(root / "Service.qml", harness / "Service.qml")
+    source = (root / "tests/transport/shell.qml").read_text().replace('import "../../" as Plugin', 'import "." as Plugin')
+    (harness / "shell.qml").write_text(source)
+    runtime = base / "runtime"
+    runtime.mkdir(mode=0o700)
+    env.update(XDG_RUNTIME_DIR=str(runtime), XDG_CACHE_HOME=str(base / "cache"), XDG_CONFIG_HOME=str(base / "config"))
+    result = subprocess.run(["quickshell", "--no-color", "-p", str(harness)], env=env,
+                            capture_output=True, text=True, timeout=30)
+    output = result.stdout + result.stderr
+    if result.returncode or "TRANSPORT PASS" not in output or "DO-NOT-ECHO" in output:
+        print(output.replace("DO-NOT-ECHO-THIS-TEST-VALUE", "[test value]"))
+        raise SystemExit("Quickshell transport test failed")
+    print("Quickshell transport tests passed")
+    if "--live-panel" not in sys.argv:
+        print("Panel rendering requires Wayland: run tests/check-qml --live-panel on Omarchy")
+        raise SystemExit(0)
+    for name in ("Ui", "Commons"):
+        shutil.copytree(imports / "qs" / name, harness / name)
+    shutil.copy2(root / "Panel.qml", harness / "Panel.qml")
+    shutil.copy2(root / "tests/render/shell.qml", harness / "shell.qml")
+    panel_env = {**os.environ, "QT_QPA_PLATFORM": "wayland", "QT_QUICK_CONTROLS_STYLE": "Basic",
+                 "XDG_CACHE_HOME": str(base / "cache")}
+    result = subprocess.run(["quickshell", "--no-color", "-p", str(harness)], env=panel_env,
+                            capture_output=True, text=True, timeout=15)
+    output = result.stdout + result.stderr
+    if result.returncode or "PANEL PASS" not in output or any(
+            problem in output for problem in ("ReferenceError", "TypeError", "Unable to assign", "ERROR:", "Binding loop")):
+        print(output)
+        raise SystemExit("Panel runtime test failed")
+    print("Panel setup, settings, instructions and open/close runtime tests passed")

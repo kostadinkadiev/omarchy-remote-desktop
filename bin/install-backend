@@ -1,0 +1,46 @@
+#!/usr/bin/python3
+"""Explicit terminal-only build/install; no credentials or service activation."""
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
+from remote_desktop import safe_dir, Problem
+
+
+def main():
+    if os.getuid() == 0 or not sys.stdin.isatty():
+        raise Problem("Run this installer as your desktop user in a terminal.")
+    recipe = Path(__file__).resolve().parent.parent / "backend/PKGBUILD"
+    print("Experimental RDP backend\n")
+    print("Build hypr-rdp commit 0474d7c9b6d7897895d758a28091d3368173e430.")
+    print("The archive checksum and Rust dependency lockfile are verified during the build.")
+    print("This installs build dependencies and a local package using normal package-manager prompts.")
+    print("It conflicts with other hypr-rdp packages; pacman will ask before replacing them.")
+    print("No remote access or startup service will be enabled.\n")
+    print("Build recipe:", recipe)
+    if input("Build and install this experimental backend? [y/N] ").strip().lower() != "y":
+        return
+    if not shutil.which("makepkg"):
+        raise Problem("Arch makepkg is required. Install base-devel first.")
+    # Base-devel is the Arch build baseline, not inferred from individual tools.
+    if subprocess.run(["pacman", "-Q", "base-devel"], stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL).returncode:
+        subprocess.run(["sudo", "pacman", "-S", "--needed", "base-devel"], check=True)
+    cache = Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "omarchy-remote-desktop"
+    safe_dir(cache, create=True)
+    with tempfile.TemporaryDirectory(prefix="backend-", dir=cache) as temporary:
+        shutil.copy2(recipe, Path(temporary) / "PKGBUILD")
+        subprocess.run(["makepkg", "--syncdeps", "--install"], cwd=temporary, check=True)
+    print("\nBackend installed. Return to Remote Desktop and click Check again.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (Problem, OSError, subprocess.CalledProcessError) as error:
+        print("Installation failed:", error, file=sys.stderr)
+        sys.exit(1)
