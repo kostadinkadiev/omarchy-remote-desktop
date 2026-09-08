@@ -40,8 +40,6 @@ cannot finish setup. Building can take several minutes and several GB of disk.
 
 ## Install the plugin
 
-While the repository is private, authenticate Git access first. Then:
-
 ```sh
 omarchy plugin add https://github.com/kostadinkadiev/omarchy-remote-desktop.git --enable
 ```
