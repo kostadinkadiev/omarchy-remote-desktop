@@ -1,7 +1,7 @@
 # Security model
 
-This is an experimental Omarchy plugin, not a security-audited remote-access
-product. Client authentication and lock-screen acceptance tests block publication.
+This plugin has undergone local source review and automated checks, not an
+independent security audit. See docs/RELEASE-REVIEW.md for evidence and limits.
 
 ## Trust boundary
 

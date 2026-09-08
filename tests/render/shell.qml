@@ -60,7 +60,7 @@ ShellRoot {
             root.stage++
             if (root.stage === 1) panel.open()
             else if (root.stage === 2) {
-                if (!panel.opened) { Qt.exit(1); return }
+                if (panel.implicitWidth <= 0 || panel.implicitHeight <= 0 || !panel.opened) { Qt.exit(1); return }
                 panel.close()
                 root.backend.snapshot = { state: "Off", configured: true,
                     address: "192.168.1.50:3389", settings: { output: "DP-1", username: "user" } }
@@ -68,7 +68,6 @@ ShellRoot {
             } else if (root.stage === 3) {
                 panel.instructions = true
                 panel.editing = true
-                panel.advanced = true
             } else {
                 panel.close()
                 if (root.backend.viewers !== 0) { Qt.exit(1); return }

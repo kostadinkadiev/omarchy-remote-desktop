@@ -19,7 +19,10 @@ class ContractTests(unittest.TestCase):
         # external data. Native controls receive only static strings or sanitized IDs.
         source = (ROOT / "Panel.qml").read_text()
         labels = re.findall(r"\bLabel\s*\{([^{}]*)\}", source, re.S)
-        self.assertGreater(len(labels), 10)
+        self.assertGreaterEqual(len(labels), 1)
+        self.assertIn("component Caption: Label", source)
+        self.assertNotIn("Text.RichText", source)
+        self.assertNotIn("Text.AutoText", source)
         for body in labels:
             self.assertIn("textFormat: Text.PlainText", body)
 

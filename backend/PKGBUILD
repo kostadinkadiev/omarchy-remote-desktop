@@ -1,4 +1,4 @@
-# Experimental backend for Remote Desktop. Update commit AND checksum together.
+# Pinned backend for Remote Desktop. Update commit AND checksum together.
 pkgname=omarchy-remote-desktop-backend
 pkgver=0.1.5.r0474d7c
 pkgrel=1

@@ -15,14 +15,14 @@ def main():
     if os.getuid() == 0 or not sys.stdin.isatty():
         raise Problem("Run this installer as your desktop user in a terminal.")
     recipe = Path(__file__).resolve().parent.parent / "backend/PKGBUILD"
-    print("Experimental RDP backend\n")
+    print("RDP backend\n")
     print("Build hypr-rdp commit 0474d7c9b6d7897895d758a28091d3368173e430.")
     print("The archive checksum and Rust dependency lockfile are verified during the build.")
     print("This installs build dependencies and a local package using normal package-manager prompts.")
     print("It conflicts with other hypr-rdp packages; pacman will ask before replacing them.")
     print("No remote access or startup service will be enabled.\n")
     print("Build recipe:", recipe)
-    if input("Build and install this experimental backend? [y/N] ").strip().lower() != "y":
+    if input("Build and install this RDP backend? [y/N] ").strip().lower() != "y":
         return
     if not shutil.which("makepkg"):
         raise Problem("Arch makepkg is required. Install base-devel first.")

@@ -111,6 +111,9 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(args[args.index("--output") + 1], "DP-1")
         self.assertEqual(args[args.index("--bind") + 1], "192.168.1.5:3389")
         self.assertIn("--config", args)
+        self.assertEqual(args[args.index("--audio-mode") + 1], "off")
+        mirrored = self.app.backend_args({**GOOD, "audio": True}, "generation")
+        self.assertEqual(mirrored[mirrored.index("--audio-mode") + 1], "mirror")
 
     def test_export_keeps_authentication_and_no_secret(self):
         self.configured()
@@ -240,6 +243,43 @@ class HelperTests(unittest.TestCase):
         with patch.object(rd.shutil, "which", return_value="/usr/bin/hypr-rdp"), \
              patch.object(rd, "run", side_effect=[" ".join(rd.FLAGS), "hypr-rdp test"]):
             self.assertTrue(rd.check_backend()["compatible"])
+
+    def test_restart_after_closed_connection_and_reject_live_listener(self):
+        self.configured()
+        self.addCleanup(patch.stopall)
+        with socket.socket() as server:
+            server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server.bind(("127.0.0.1", 0))
+            address, port = server.getsockname()
+            server.listen()
+            patch.object(self.app, "read_config", return_value={**GOOD, "address": address, "port": port, "enabled": False}).start()
+            with patch.object(self.app, "preflight"), patch.object(self.app, "install_unit"), \
+                 patch.object(rd, "systemctl", return_value="inactive"):
+                with self.assertRaises(rd.Problem):
+                    self.app.enable()
+            with socket.create_connection((address, port)) as client:
+                connection, _ = server.accept()
+                connection.close()  # Server actively closes: leaves TIME_WAIT.
+                self.assertEqual(client.recv(1), b"")
+        with socket.socket() as old_probe:
+            with self.assertRaises(OSError):
+                old_probe.bind((address, port))
+        with patch.object(self.app, "preflight"), patch.object(self.app, "install_unit"), \
+             patch.object(rd, "systemctl", return_value="inactive"):
+            self.app.enable()
+        self.assertTrue(rd.read_json(self.app.config)["enabled"])
+
+    def test_enable_persists_login_startup_even_with_old_preference_off(self):
+        for state in ("inactive", "active"):
+            with self.subTest(state=state):
+                self.configured()
+                with patch.object(self.app, "preflight"), patch.object(self.app, "install_unit"), \
+                     patch.object(rd.socket, "socket"), \
+                     patch.object(rd, "systemctl", return_value=state) as ctl:
+                    self.app.enable()
+                self.assertTrue(self.app.read_config()["enabled"])
+                self.assertTrue(self.app.read_config()["autostart"])
+                self.assertTrue(any(call.args == ("enable", rd.UNIT) for call in ctl.call_args_list))
 
     def test_enable_failed_service_clears_desired_access_and_startup(self):
         self.configured()

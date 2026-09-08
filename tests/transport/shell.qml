@@ -35,10 +35,15 @@ ShellRoot {
                 if (!root.generated || backend.payload !== "") { root.fail("Secret transport failed"); return }
                 root.stage = 2
                 backend.configure({ address: "invalid", password: "DO-NOT-ECHO-THIS-TEST-VALUE" }, false)
-            } else {
+            } else if (root.stage === 2) {
                 if (backend.error !== "Choose a local IPv4 address." || backend.payload !== "") {
                     root.fail("Input rejection or secret clearing failed"); return
                 }
+                root.stage = 3
+                backend.action = "status"
+                backend.completed({ ok: false, error: "Synthetic status failure" })
+            } else {
+                if (backend.busy || backend.error !== "Synthetic status failure") { root.fail("Status failure retried immediately"); return }
                 console.log("TRANSPORT PASS")
                 Qt.quit()
             }

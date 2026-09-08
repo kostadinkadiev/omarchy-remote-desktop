@@ -29,7 +29,7 @@ commit `0474d7c9b6d7897895d758a28091d3368173e430` contains them. The helper chec
 capabilities instead of pretending the stable package suffices. Publication stays
 blocked pending a compatible backend and real Windows authentication/lock tests.
 
-The experimental setup offers an opt-in terminal installer for that exact commit,
+The setup offers an opt-in terminal installer for that exact commit,
 with a checked archive SHA-256 and frozen dependency build. It never silently
 installs the moving AUR Git package. The normal package-manager transaction handles
 dependencies and any conflicting hypr-rdp installation.

@@ -3,9 +3,16 @@
 Enable RDP access to your existing Omarchy desktop, then connect from Windows
 Remote Desktop Connection or Microsoft Windows App on Mac.
 
-**Experimental, private development build.** Real Windows/Mac authentication,
-capture and lock-screen acceptance tests have not passed yet. This is not a
-marketplace-ready release. See [compatibility](docs/COMPATIBILITY.md).
+Windows and Android use, audio mirroring and logout/login have been reported
+successful by the project owner. Mac is expected to work through Microsoft
+Windows App, but has not been tested with this plugin. Platform-specific evidence and outstanding release checks
+are recorded in [compatibility](docs/COMPATIBILITY.md).
+
+![Remote Desktop panel](screenshots/panel.png)
+
+[Settings screenshot](screenshots/settings.png) · [Connection help](screenshots/connection-help.png)
+
+Screenshots use sample connection details.
 
 ## Simple setup
 
@@ -16,15 +23,15 @@ marketplace-ready release. See [compatibility](docs/COMPATIBILITY.md).
    **Enable Remote Desktop**.
 
 The compact panel shows status, address, username and copy buttons. Windows
-connection files and connection instructions are one click away. Settings holds
-monitor/network selection, credential replacement, audio and optional startup
-after desktop login. Installing the plugin itself never starts remote access.
+connection files and connection instructions are one click away. Settings contains monitor/network selection, credential replacement and audio. The main toggle remembers your choice: On resumes access
+after desktop login; Off keeps access off after reboot. **Share audio** plays sound on both this computer and the
+remote device; when off, sound stays local. Installing the plugin itself never starts remote access.
 
 **Backend packaging limitation:** upstream stable `hypr-rdp` v0.1.5 does not have
 the password-file or session-hook interfaces required by this plugin. The current
 development source does. The plugin refuses incompatible binaries and never
 silently replaces them with a moving Git build. Setup offers an explicit
-**Install experimental backend** action. It opens a terminal, explains the pinned
+**Install RDP backend** action. It opens a terminal, explains the pinned
 build and asks before downloading/building/installing it. The archive has a fixed
 SHA-256 checksum, Rust dependencies use the upstream lockfile, and pacman handles
 dependency/installation prompts. Installing the stable package alone currently
@@ -45,21 +52,23 @@ Use the desktop's existing Wayland environment; do not run the helper as root.
 
 ## Connect
 
+**Android:** use Microsoft Windows App, add the displayed address as a PC, and
+enter your RDP credentials. For a Tailscale address, connect Tailscale first.
+
 **Windows:** open Remote Desktop Connection (`mstsc`), enter the displayed
 `address:port`, and use the RDP username/password you created. Alternatively,
 copy the exported `Omarchy.rdp` file to Windows and open it. Exports are saved to
 `~/.config/omarchy-remote-desktop/exports/` and contain no password.
 
 **Mac:** install Microsoft's Windows App, choose **Add PC**, then enter the same
-address and RDP credentials. Mac compatibility remains unverified.
+address and RDP credentials. You can also import the exported `.rdp` file.
 
 On the first connection, compare the certificate's SHA-256 fingerprint with
 **How to connect** in the plugin before accepting it. The certificate is
 self-signed and retained across restarts; it is not a public CA identity.
 
 Your RDP password is separate from your Linux password. If the desktop is locked,
-normal Omarchy unlock is still required after RDP authentication. This behavior
-must pass real-client testing before release.
+normal Omarchy unlock is still required after RDP authentication. See the acceptance checklist for recorded client tests.
 
 ## What is shared
 
@@ -102,7 +111,8 @@ monitor/network, backend failure, plugin disable or plugin removal stop serving.
 Automatic recovery to a different monitor or address is never attempted.
 
 The panel switch turns access off and cancels startup after login. Saving settings
-stops the old session; **Save and enable** explicitly starts the new configuration.
+stops the old session; **Save settings** restarts it if sharing was on and keeps
+it off otherwise.
 Password replacement therefore disconnects existing clients.
 
 To remove configuration and credentials, choose **Settings → Remove setup →

@@ -392,7 +392,7 @@ WantedBy=graphical-session.target
         self.stop()
         safe_dir(self.data, create=True)
         # Fail closed even if certificate creation or service installation fails.
-        save_json(self.config, {**values, "enabled": False})
+        save_json(self.config, {**values, "enabled": False, "autostart": False})
         if password:
             write_file(self.data / "password", password)
         self.ensure_certificate()
@@ -427,16 +427,21 @@ WantedBy=graphical-session.target
         self.preflight(conf)
         self.install_unit()
         if systemctl("is-active", UNIT, check=False) == "active":
-            return {"message": "Remote Desktop is already enabled."}
+            systemctl("enable", UNIT)
+            save_json(self.config, {**conf, "enabled": True, "autostart": True})
+            return {"message": "Remote Desktop is on and will resume after desktop login."}
         # Binding only checks availability; the backend must still acquire it.
         try:
             with socket.socket() as probe:
+                # Match the backend listener: closed sessions in TIME_WAIT
+                # must not prevent restarting, but an active listener must.
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 probe.bind((conf["address"], conf["port"]))
         except OSError:
             raise Problem("That address or port is busy. Choose another port in Settings.") from None
-        save_json(self.config, {**conf, "enabled": True})
+        save_json(self.config, {**conf, "enabled": True, "autostart": True})
         try:
-            systemctl("enable" if conf["autostart"] else "disable", UNIT)
+            systemctl("enable", UNIT)
             systemctl("reset-failed", UNIT, check=False)
             systemctl("start", UNIT)
         except Problem:
@@ -458,7 +463,7 @@ WantedBy=graphical-session.target
     def status(self):
         conf = self.read_config(required=False)
         result = dict(configured=bool(conf), state="Off" if conf else "Setup required",
-                      settings=conf or {}, experimental=True)
+                      settings=conf or {})
         if not conf:
             return result
         if self.owned_unit():
@@ -517,7 +522,7 @@ WantedBy=graphical-session.target
                 "--bind", f'{conf["address"]}:{conf["port"]}', "--username", conf["username"],
                 "--password-file", str(self.data / "password"), "--cert", str(self.data / "cert.pem"),
                 "--key", str(self.data / "key.pem"), "--output", conf["output"], "--fps", "30",
-                "--egfx-codec", "avc420", "--audio-mode", "redirect" if conf["audio"] else "off",
+                "--egfx-codec", "avc420", "--audio-mode", "mirror" if conf["audio"] else "off",
                 "--on-session-start", shlex.join(callback + ["start", generation]),
                 "--on-session-end", shlex.join(callback + ["end", generation])]
 
@@ -639,7 +644,7 @@ def input_json():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Remote Desktop for Omarchy (experimental)")
+    parser = argparse.ArgumentParser(description="Remote Desktop for Omarchy")
     parser.add_argument("command", choices=("check", "inventory", "status", "generate-password", "configure",
                                             "enable", "disable", "export", "remove", "supervise", "event"))
     parser.add_argument("event_args", nargs="*")

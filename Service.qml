@@ -14,6 +14,8 @@ Item {
     property string action: ""
     property string payload: ""
     property bool enableAfterSave: false
+    property bool savingSettings: false
+    property int inventoryTicks: 0
     readonly property bool busy: worker.running
     readonly property string helper: Model.localPath(Qt.resolvedUrl("bin/remote-desktopctl"))
     signal passwordGenerated(string password)
@@ -21,7 +23,7 @@ Item {
 
     function execute(command, data) {
         if (worker.running) return
-        if (command !== "status") {
+        if (command !== "status" && command !== "check") {
             error = ""
             notice = ""
         }
@@ -33,6 +35,7 @@ Item {
 
     function configure(data, enable) {
         if (busy) return
+        savingSettings = true
         enableAfterSave = enable
         execute("configure", data)
     }
@@ -45,6 +48,8 @@ Item {
         if (!result.ok) {
             error = String(result.error || "Action failed.").slice(0, 300)
             enableAfterSave = false
+            savingSettings = false
+            if (action !== "status") Qt.callLater(refresh)
             return
         }
         if (action === "check") {
@@ -62,11 +67,13 @@ Item {
                 enableAfterSave = false
                 Qt.callLater(function() { root.execute("enable") })
             } else {
-                notice = result.message || "Saved."
+                notice = "Settings saved. Remote access is off."
+                savingSettings = false
                 Qt.callLater(refresh)
             }
         } else {
-            notice = result.message || ""
+            notice = savingSettings && action === "enable" ? "Settings saved. Starting remote access…" : (result.message || "")
+            savingSettings = false
             Qt.callLater(refresh)
         }
     }
@@ -104,7 +111,12 @@ Item {
         interval: 3000
         running: root.viewers > 0 || Model.active(root.snapshot.state)
         repeat: true
-        onTriggered: root.refresh()
+        onTriggered: {
+            root.inventoryTicks++
+            if (root.viewers > 0 && root.inventoryTicks % 3 === 0 && !root.busy)
+                root.execute("check")
+            else root.refresh()
+        }
     }
 
     Component.onCompleted: execute("check")

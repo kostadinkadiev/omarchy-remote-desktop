@@ -5,9 +5,15 @@
   "version": "0.1.0",
   "author": "Kostadin Kadiev",
   "license": "MIT",
-  "description": "Set up RDP access to your Omarchy desktop from Windows or Mac. Experimental: client and lock-screen acceptance testing pending.",
-  "kinds": ["service", "bar-widget"],
-  "entryPoints": {"service": "Service.qml", "barWidget": "Panel.qml"},
+  "description": "Share your existing Omarchy desktop over RDP with simple setup, private-network binding and native shell controls.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Panel.qml"
+  },
   "barWidget": {
     "displayName": "Remote Desktop",
     "description": "Share your desktop through RDP",

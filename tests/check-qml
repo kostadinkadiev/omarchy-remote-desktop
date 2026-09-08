@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix="remote-desktop-qml-") as temporary:
     # generic. Keep those specific known warnings; reject every other warning.
     warnings = [line for line in result.stderr.splitlines() if line.startswith(("Warning:", "Error:"))]
     unexpected = [line for line in warnings if not any(known in line for known in
-                  ('Member "shell" not found on type "QObject"', 'Member "subtitle" not found on type "QObject"',
+                  ('Member "shell" not found on type "QObject"', 'Member "subtitle" not found on type "QObject"', 'Member "caption" not found on type "QObject"', 'Member "family" not found on type "QObject"', 'Member "body" not found on type "QObject"',
                    'Type QProcess::ExitStatus of parameter exitStatus in signal called exited was not found'))]
     if unexpected:
         print(result.stderr)
