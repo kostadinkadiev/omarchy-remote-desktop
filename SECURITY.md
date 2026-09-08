@@ -1,7 +1,8 @@
 # Security model
 
 This plugin has undergone local source review and automated checks, not an
-independent security audit. See docs/RELEASE-REVIEW.md for evidence and limits.
+independent security audit. See [compatibility](docs/COMPATIBILITY.md) for test
+evidence and remaining validation gaps.
 
 ## Trust boundary
 
@@ -77,5 +78,4 @@ Marketplace publication requires its exact-commit review for installer,
 package-management and service-management capabilities.
 
 Report security concerns privately to the repository owner. Do not put passwords,
-private keys, desktop captures or exploit details in public issues. Keep the
-repository private until the release checks and review are complete.
+private keys, desktop captures or exploit details in public issues.

@@ -49,13 +49,12 @@ Microsoft Windows App. Also check Retina scaling, Command/Control/Option mapping
 clipboard, audio and full-screen behavior. Keep Mac labeled untested until done. Mac testing is a follow-up, not a blocker
 for a release advertising Windows/Android as user-tested.
 
-## Publication gate
+## Validation limits
 
-Authentication or lock bypass is a release blocker. Do not weaken the lock,
-disable certificate validation or silently change capture mode to pass tests.
-Keep the repository private until the owner reviews the results. Then prepare
-screenshots, a versioned release and the marketplace's exact-commit security and
-compatibility submission. Automated checks are not a complete security audit.
+Automated checks are not a complete security audit. Authentication or lock bypass
+must be treated as a security defect, never worked around by weakening the lock
+or certificate validation. Marketplace verification applies only to its reviewed
+commit and does not replace client testing.
 
 ## Follow-up changes after Android testing
 

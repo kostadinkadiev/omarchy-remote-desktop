@@ -154,5 +154,4 @@ can be inspected without enabling access using `bin/remote-desktopctl check` or
 `bin/remote-desktopctl status`. The machine-readable CLI always emits bounded JSON.
 Configuration is accepted only as JSON on stdin, never as password-bearing flags.
 
-See [security](SECURITY.md), [the implementation plan](docs/PLAN.md), and
-[the acceptance checklist](docs/COMPATIBILITY.md). MIT licensed.
+See [security](SECURITY.md) and [compatibility](docs/COMPATIBILITY.md). MIT licensed.
