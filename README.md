@@ -1,11 +1,12 @@
 # Remote Desktop for Omarchy
 
-Enable RDP access to your existing Omarchy desktop, then connect from Windows
-Remote Desktop Connection or Microsoft Windows App on Mac.
+Access your existing Omarchy desktop over RDP from Windows, Mac, Android or
+iPhone. Windows and Android are user-tested; Mac and iPhone are untested.
 
 Windows and Android use, audio mirroring and logout/login have been reported
-successful by the project owner. Mac is expected to work through Microsoft
-Windows App, but has not been tested with this plugin. Platform-specific evidence and outstanding release checks
+successful by the project owner. Mac and iPhone are expected to work through
+Microsoft Windows App, but have not been tested with this plugin.
+Platform-specific evidence and outstanding release checks
 are recorded in [compatibility](docs/COMPATIBILITY.md).
 
 ![Remote Desktop panel](screenshots/panel.png)
@@ -52,9 +53,6 @@ Use the desktop's existing Wayland environment; do not run the helper as root.
 
 ## Connect
 
-**Android:** use Microsoft Windows App, add the displayed address as a PC, and
-enter your RDP credentials. For a Tailscale address, connect Tailscale first.
-
 **Windows:** open Remote Desktop Connection (`mstsc`), enter the displayed
 `address:port`, and use the RDP username/password you created. Alternatively,
 copy the exported `Omarchy.rdp` file to Windows and open it. Exports are saved to
@@ -62,6 +60,15 @@ copy the exported `Omarchy.rdp` file to Windows and open it. Exports are saved t
 
 **Mac:** install Microsoft's Windows App, choose **Add PC**, then enter the same
 address and RDP credentials. You can also import the exported `.rdp` file.
+
+Mac has not yet been tested with this plugin.
+
+**Android:** use Microsoft Windows App, add the displayed address as a PC, and
+enter your RDP credentials. For a Tailscale address, connect Tailscale first.
+
+**iPhone:** use Microsoft Windows App, add a PC with the displayed address, and
+enter your RDP credentials. For a Tailscale address, connect Tailscale first.
+iPhone has not yet been tested with this plugin.
 
 On the first connection, compare the certificate's SHA-256 fingerprint with
 **How to connect** in the plugin before accepting it. The certificate is
