@@ -51,10 +51,35 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(rd.validate({**GOOD, "address": "100.90.1.3"})["address"], "100.90.1.3")
 
     def test_complete_password_required(self):
-        for password in ("", "short", "x" * 300, "long-password\nwith-break", "x" * 16 + "\0"):
+        for password in ("", "short", "x" * 300, "long-password\nwith-break", "x" * 16 + "\0",
+                         "x" * (rd.PASSWORD_MINIMUM - 1)):
             with self.subTest(password=repr(password)), self.assertRaises(rd.Problem):
                 rd.validate_password(password)
         self.assertEqual(rd.validate_password(PASSWORD), PASSWORD)
+        # The absolute floor must accept a deliberately shortened password, or the
+        # supervisor would stop access moments after it was saved.
+        self.assertEqual(rd.validate_password("x" * rd.PASSWORD_MINIMUM), "x" * rd.PASSWORD_MINIMUM)
+
+    def test_configure_enforces_the_password_floor(self):
+        with patch.object(self.app, "stop"), patch.object(self.app, "ensure_certificate"), \
+             patch.object(self.app, "install_unit"), patch.object(rd, "inventory", return_value=LIVE):
+            for password in ("x" * (rd.PASSWORD_MINIMUM - 1), "x" * 8 + "\n", "x" * 300):
+                with self.subTest(password=repr(password)), self.assertRaises(rd.Problem):
+                    self.app.configure({**GOOD, "password": password})
+            self.assertFalse((self.app.data / "password").exists())
+            # No setting waives the floor, so nothing can request a weaker one.
+            with self.assertRaises(rd.Problem):
+                self.app.configure({**GOOD, "password": "x" * 4, "allowShortPassword": True})
+            floor = "x" * rd.PASSWORD_MINIMUM
+            self.app.configure({**GOOD, "password": floor})
+        self.assertEqual(self.app.credential(), floor)
+
+    def test_supervisor_accepts_a_stored_short_password(self):
+        short = "x" * rd.PASSWORD_MINIMUM
+        rd.save_json(self.app.config, {**GOOD, "enabled": True})
+        rd.write_file(self.app.data / "password", short)
+        # preflight revalidates the stored secret on every supervise cycle.
+        self.assertEqual(self.app.credential(), short)
 
     def test_safe_files_reject_symlink_fifo_permissions_hardlink_and_size(self):
         path = self.base / "secret"

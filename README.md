@@ -21,7 +21,8 @@ Screenshots use sample connection details.
 2. Install a compatible backend when prompted, then click **Check again**.
 3. Choose a physical monitor and your LAN or existing private-VPN address.
 4. Create RDP credentials (or generate a password), save them, and click
-   **Enable Remote Desktop**.
+   **Enable Remote Desktop**. Passwords must be at least 8 characters; the server
+   has no login rate limiting, so prefer the generator or a longer passphrase.
 
 The compact panel shows status, address, username and copy buttons. Windows
 connection files and connection instructions are one click away. Settings contains monitor/network selection, credential replacement and audio. **Disconnect** appears only while a client is connected and ends that session without turning Remote Desktop off. The main toggle remembers your choice: On resumes access

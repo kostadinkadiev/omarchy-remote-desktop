@@ -303,7 +303,7 @@ Ui.Panel {
                         Ui.TextField {
                             id: password
                             Layout.fillWidth: true
-                            placeholderText: root.snapshot.configured ? "New password (blank keeps current)" : "Password · at least 16 characters"
+                            placeholderText: root.snapshot.configured ? "New password (blank keeps current)" : "Password · at least 8 characters"
                             maximumLength: 256
                             echoMode: showPassword.checked ? TextInput.Normal : TextInput.Password
                             inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText

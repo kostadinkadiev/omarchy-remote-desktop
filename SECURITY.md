@@ -15,8 +15,16 @@ authentication, cryptography or input handling.
 
 ## Credentials and configuration
 
-- Both username and password are required. Custom passwords require 16–256
-  characters; the generator uses the operating system cryptographic RNG.
+- Both username and password are required. Passwords must be 8–256 characters, and
+  control characters are always rejected. The floor is not configurable and no
+  setting waives it: with no credentials at all the backend drops to TLS-only with
+  no network authentication, so an empty secret must stay unreachable through
+  configuration. The generator uses the operating system cryptographic RNG and
+  produces far longer passwords than the floor.
+- The backend performs no login rate limiting, lockout or failed-attempt backoff, so
+  password length is the only defence against online brute force. Eight characters is
+  a floor, not a recommendation; prefer the generator, and treat a short password as
+  acceptable only on a network you already trust.
 - Plaintext password storage is necessary for the backend password-file API.
   Storage lives outside the plugin repository under an owner-only directory;
   sensitive files are 0600. No shell.json, argument, export or log carries it.

@@ -30,6 +30,10 @@ PLUGIN = "kokd.remote-desktop"
 UNIT = "omarchy-remote-desktop.service"
 MARKER = "# Managed by kokd.remote-desktop\n"
 MAX_IO = 65536
+# A hard floor, enforced everywhere, including when the supervisor re-reads a
+# stored secret. It is deliberately not configurable: the backend drops to
+# TLS-only with no network authentication when it has no credentials at all.
+PASSWORD_MINIMUM = 8
 ROOT = Path(__file__).resolve().parent.parent
 FLAGS = ("--password-file", "--output", "--cert", "--key", "--config",
          "--on-session-start", "--on-session-end", "--audio-mode", "--egfx-codec")
@@ -200,8 +204,14 @@ def validate(values):
 
 
 def validate_password(password):
-    if not isinstance(password, str) or not 16 <= len(password) <= 256:
-        raise Problem("Use a password between 16 and 256 characters.")
+    """The single password policy, applied to typed and stored secrets alike.
+
+    The supervisor revalidates the stored secret every cycle, so configure must
+    never accept a password this rejects or access would fail closed seconds
+    after being saved.
+    """
+    if not isinstance(password, str) or not PASSWORD_MINIMUM <= len(password) <= 256:
+        raise Problem(f"Use a password between {PASSWORD_MINIMUM} and 256 characters.")
     if any(ord(char) < 32 or ord(char) == 127 for char in password):
         raise Problem("Password must not contain line breaks or control characters.")
     return password
