@@ -84,11 +84,17 @@ before local desktop login and while the machine sleeps.
 
 ## Dependencies and reporting
 
-Dependency installation is an explicit terminal action and requires the normal
-package-management privileges. Never add a curl-to-shell installer or execute a
-moving Git checkout. A source build must be pinned to a full reviewed commit.
-Marketplace publication requires its exact-commit review for installer,
-package-management and service-management capabilities.
+The backend is not bundled, built or vendored here. Installing it is an explicit
+terminal action that hands `hypr-rdp` to Omarchy's own AUR helper; this plugin
+ships no installer, no build recipe and no privileged command, and never installs
+anything on its own. Never add a curl-to-shell installer, execute a moving Git
+checkout, or run a package manager outside that explicit action.
+
+That package is maintained by a third party in the AUR rather than pinned to a
+commit reviewed here, which is weaker provenance than a pinned build: review it as
+you would any AUR package. What the plugin does guarantee is capability, not
+origin — it inspects the binary for the password-file and session-hook interfaces
+and refuses to run anything lacking them.
 
 Report security concerns privately to the repository owner. Do not put passwords,
 private keys, desktop captures or exploit details in public issues.

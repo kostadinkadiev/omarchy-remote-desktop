@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import subprocess
 import re
 import unittest
 
@@ -56,6 +57,25 @@ class ContractTests(unittest.TestCase):
         self.assertIsNotNone(block)
         self.assertNotIn("visible:", block.group(0))
         self.assertIn("fps: Number(frameRate.value || 30)", source)
+
+    def test_repository_ships_no_installer_build_recipe_or_privileged_command(self):
+        # The backend is installed by Omarchy's own helper, so nothing here should
+        # look like an installer, a build recipe, or a privilege escalation. Those
+        # are exactly the patterns a marketplace capability scan reports.
+        tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True,
+                                 text=True, check=True).stdout.split()
+        for name in tracked:
+            self.assertNotIn("PKGBUILD", name)
+            self.assertFalse(re.search(r"(^|/)(install|setup|uninstall)[^/]*$", name, re.I), name)
+        for name in tracked:
+            if name.startswith(".github/"):
+                continue
+            body = (ROOT / name).read_bytes()
+            if b"\x00" in body[:4096]:
+                continue
+            # Built at runtime so this guard does not match its own source.
+            for word in (b"su" + b"do ", b"pk" + b"exec"):
+                self.assertNotIn(word, body, f"{name} reintroduces a privilege reference")
 
     def test_setup_never_places_password_in_command_array(self):
         service = (ROOT / "Service.qml").read_text()

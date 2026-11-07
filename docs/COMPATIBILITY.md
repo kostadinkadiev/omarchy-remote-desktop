@@ -6,9 +6,10 @@
 | --- | --- | --- |
 | Local host | Hyprland 0.56.2, Quickshell 0.3.1, Python 3.14.7 | Installed versions inspected |
 | Backend stable v0.1.5 | Source lacks password-file and session hooks | Incompatible |
+| Backend v0.1.8 (AUR `hypr-rdp`) | Diffed against the previously pinned commit: every flag this plugin passes is unchanged, empty password files still rejected, still no login rate limiting; adds opt-in `--auth-mode pam` and `--domain` | Compatible; now the supported install path |
 | Backend commit 0474d7c9b6d7897895d758a28091d3368173e430 | SHA-256 checked archive; frozen Rust build; Arch package built successfully | Built on x86_64 |
 | Backend local checks | Missing/empty secrets rejected; localhost listener; NLA selected; non-NLA negotiation rejected | Passed; no desktop session established |
-| Helper security/lifecycle/installer | 49 tests, including real isolated stand-in processes and certificate persistence | Passed; not full RDP validation |
+| Helper security/lifecycle | 48 tests, including real isolated stand-in processes and certificate persistence | Passed; not full RDP validation |
 | Disconnect action | Helper cycles only the owned unit, refuses when off/stopped/foreign, and never rewrites settings | Unit-tested; live client disconnect not yet verified |
 | UI | QML lint, 5 Qt test results, real Quickshell stdin transport, mock panel on Wayland | Passed on Omarchy 4.0.4 / Qt 6.11.2 |
 | Android Windows App | Owner reports successful connection, reconnect, input, rotation, clipboard, lock, wrong-password rejection and Tailscale/mobile-data tests on 2026-09-08; exact client version not recorded | User-tested; audio delay reported |
@@ -53,6 +54,8 @@ report above is not an assertion that every item below was tested.
 - [ ] Switching between a shared monitor and a virtual display restarts cleanly and records the right mode.
 - [ ] Settings written before virtual displays existed still share their monitor after an update.
 - [ ] Each offered frame rate reaches the backend and settings predating the setting still run at 30.
+- [ ] Install RDP backend installs the AUR package and Check again then reports compatible.
+- [ ] A pre-0.1.6 backend is refused with a message naming the missing interfaces.
 - [ ] Complete cleanup removes only plugin-owned service/configuration/secrets.
 
 ## Mac acceptance

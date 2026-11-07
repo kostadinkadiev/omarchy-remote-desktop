@@ -203,7 +203,7 @@ Ui.Panel {
                             DesktopButton {
                                 text: "Install RDP backend"
                                 enabled: !root.busy
-                                onClicked: Quickshell.execDetached(["omarchy", "launch", "terminal", "--", "/usr/bin/python3", Model.localPath(Qt.resolvedUrl("bin/install-backend"))])
+                                onClicked: Quickshell.execDetached(["omarchy", "launch", "terminal", "--", "omarchy", "pkg", "aur", "add", "hypr-rdp"])
                             }
                             DesktopButton { text: "Check again"; enabled: !root.busy; onClicked: root.backend.execute("check") }
                         }

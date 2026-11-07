@@ -31,15 +31,16 @@ connection files and connection instructions are one click away. Settings contai
 after desktop login; Off keeps access off after reboot. **Share audio** plays sound on both this computer and the
 remote device; when off, sound stays local. Installing the plugin itself never starts remote access.
 
-**Backend packaging limitation:** upstream stable `hypr-rdp` v0.1.5 does not have
-the password-file or session-hook interfaces required by this plugin. The current
-development source does. The plugin refuses incompatible binaries and never
-silently replaces them with a moving Git build. Setup offers an explicit
-**Install RDP backend** action. It opens a terminal, explains the pinned
-build and asks before downloading/building/installing it. The archive has a fixed
-SHA-256 checksum, Rust dependencies use the upstream lockfile, and pacman handles
-dependency/installation prompts. Installing the stable package alone currently
-cannot finish setup. Building can take several minutes and several GB of disk.
+**Backend:** this plugin drives `hypr-rdp`, which it does not bundle. Setup
+offers an explicit **Install RDP backend** action that opens a terminal and runs
+`omarchy pkg aur add hypr-rdp`. The AUR package builds from source, so expect
+several minutes and several GB of disk the first time.
+
+The plugin checks the binary for the password-file and session-hook interfaces it
+needs and refuses anything that lacks them, whatever its version. Release 0.1.6
+and later provide them; earlier releases do not. The package is maintained in the
+AUR by a third party rather than pinned to a commit reviewed here, so review it
+as you would any AUR package before installing.
 
 ## Install the plugin
 
@@ -48,7 +49,7 @@ omarchy plugin add https://github.com/kostadinkadiev/omarchy-remote-desktop.git 
 ```
 
 Requirements: Omarchy's Quickshell shell, Hyprland 0.54+, Python 3.10+, systemd
-user services, OpenSSL, iproute2 and a compatible `hypr-rdp` binary on PATH.
+user services, OpenSSL, iproute2 and `hypr-rdp` 0.1.6 or newer on PATH.
 The backend also requires its normal graphics/capture and audio dependencies.
 Use the desktop's existing Wayland environment; do not run the helper as root.
 

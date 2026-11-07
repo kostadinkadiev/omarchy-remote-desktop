@@ -274,12 +274,13 @@ def inventory():
 def check_backend():
     binary = shutil.which("hypr-rdp")
     if not binary:
-        return dict(installed=False, compatible=False, message="Install hypr-rdp to continue.")
+        return dict(installed=False, compatible=False,
+                    message="Install the hypr-rdp package to continue.")
     help_text = run([binary, "--help"])
     compatible = all(flag in help_text for flag in FLAGS)
     return dict(installed=True, compatible=compatible,
                 version=run([binary, "--version"])[:100],
-                message="" if compatible else "This hypr-rdp version lacks required security features. A compatible release or reviewed pinned build is required.")
+                message="" if compatible else "This hypr-rdp version lacks the password-file and session-hook interfaces this plugin requires. Update the package.")
 
 
 def systemctl(*args, check=True):
