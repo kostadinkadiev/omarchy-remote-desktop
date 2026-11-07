@@ -13,6 +13,8 @@
 | UI | QML lint, 5 Qt test results, real Quickshell stdin transport, mock panel on Wayland | Passed on Omarchy 4.0.4 / Qt 6.11.2 |
 | Android Windows App | Owner reports successful connection, reconnect, input, rotation, clipboard, lock, wrong-password rejection and Tailscale/mobile-data tests on 2026-09-08; exact client version not recorded | User-tested; audio delay reported |
 | Windows RDP client | Owner reports successful Windows use on 2026-09-08; exact client/version and individual acceptance items not recorded | User-tested |
+| Linux FreeRDP client | `xfreerdp3` 3.31.1 on Omarchy 4.0.4/Hyprland 0.56.2: fullscreen 2880x1800 virtual display, keyboard confirmed reaching the remote lock screen, pointer events observed | User-tested 2026-11-07 |
+| `wlfreerdp3` / `sdl-freerdp3` | wlfreerdp3 crashes on the backend's `ResetGraphics` with `monitorCount[0]`; sdl-freerdp3 enumerates a 128x128 display and refuses fullscreen | Unusable on Hyprland; upstream issues |
 | macOS Windows App | No Mac available; no Mac-specific blocker found in upstream issue search on 2026-09-08 | Expected compatible, untested |
 | Server Mode / omaVNC | Source/documentation reviewed | Live coexistence pending |
 

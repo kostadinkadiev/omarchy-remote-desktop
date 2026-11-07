@@ -1,7 +1,8 @@
 # Remote Desktop for Omarchy
 
-Access your existing Omarchy desktop over RDP from Windows, Mac, Android or
-iPhone. Windows and Android are user-tested; Mac and iPhone are untested.
+Access your existing Omarchy desktop over RDP from Windows, Linux, Mac, Android
+or iPhone. Windows, Android and Linux are user-tested; Mac and iPhone are
+untested.
 
 Windows and Android use, audio mirroring and logout/login have been reported
 successful by the project owner. Mac and iPhone are expected to work through
@@ -63,6 +64,26 @@ address and RDP credentials. You can also import the exported `.rdp` file.
 
 Mac has not yet been tested with this plugin.
 
+**Linux (including another Omarchy machine):** install `freerdp` and use the
+X11 client, which is the one that works under Hyprland:
+
+```sh
+xfreerdp3 /v:<address> /u:<rdp-username> /f
+```
+
+Pair it with a **virtual display** sized to this client's physical resolution.
+Omarchy sets `xwayland.force_zero_scaling`, so the X11 client runs at native
+pixels and matches the virtual display one to one; set the display scale to 2
+for a HiDPI client so its interface is not drawn at half size. Windowed works
+too: add `/size:<width>x<height> /smart-sizing`.
+
+Avoid the other two FreeRDP front ends on Hyprland. `wlfreerdp3` is deprecated
+upstream and crashes when the server resets its graphics channel.
+`sdl-freerdp3` fails to enumerate the display and refuses to start fullscreen.
+Because the X11 client cannot capture a Wayland compositor's shortcuts, your
+own keybindings keep working and a fullscreen session can always be left
+normally; the trade is that those keys do not reach the remote desktop.
+
 **Android:** use Microsoft Windows App, add the displayed address as a PC, and
 enter your RDP credentials. For a Tailscale address, connect Tailscale first.
 
@@ -75,7 +96,9 @@ On the first connection, compare the certificate's SHA-256 fingerprint with
 self-signed and retained across restarts; it is not a public CA identity.
 
 Your RDP password is separate from your Linux password. If the desktop is locked,
-normal Omarchy unlock is still required after RDP authentication. See the acceptance checklist for recorded client tests.
+normal Omarchy unlock is still required after RDP authentication: the session
+opens on the lock screen and waits for the remote machine's own login password,
+which is easily mistaken for a blank or broken picture. See the acceptance checklist for recorded client tests.
 
 ## Choosing a display
 
