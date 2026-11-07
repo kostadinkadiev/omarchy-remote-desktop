@@ -34,6 +34,9 @@ MAX_IO = 65536
 # stored secret. It is deliberately not configurable: the backend drops to
 # TLS-only with no network authentication when it has no credentials at all.
 PASSWORD_MINIMUM = 8
+# Capture rates the backend is offered. Higher costs encoder throughput, which
+# is the limit on integrated graphics long before bandwidth is.
+FRAME_RATES = (24, 30, 45, 60)
 ROOT = Path(__file__).resolve().parent.parent
 FLAGS = ("--password-file", "--output", "--cert", "--key", "--config",
          "--on-session-start", "--on-session-end", "--audio-mode", "--egfx-codec")
@@ -205,11 +208,15 @@ def validate(values):
     port = values.get("port", 3389)
     if type(port) is not int or not 1024 <= port <= 65535:
         raise Problem("Port must be a number between 1024 and 65535.")
+    # Settings written before the frame rate was adjustable carry no fps.
+    fps = values.get("fps", 30)
+    if type(fps) is not int or type(fps) is bool or fps not in FRAME_RATES:
+        raise Problem("Frame rate must be one of " + ", ".join(str(r) for r in FRAME_RATES) + ".")
     for key in ("autostart", "audio"):
         if type(values.get(key, False)) is not bool:
             raise Problem(f"Invalid {key} setting.")
     return dict(address=str(ip), port=port, username=username, output=output,
-                mode=mode, resolution=resolution, scale=scale,
+                mode=mode, resolution=resolution, scale=scale, fps=fps,
                 autostart=values.get("autostart", False), audio=values.get("audio", False))
 
 
@@ -577,7 +584,7 @@ WantedBy=graphical-session.target
         return [shutil.which("hypr-rdp") or "hypr-rdp", "--config", str(self.data / "backend.toml"),
                 "--bind", f'{conf["address"]}:{conf["port"]}', "--username", conf["username"],
                 "--password-file", str(self.data / "password"), "--cert", str(self.data / "cert.pem"),
-                "--key", str(self.data / "key.pem"), "--fps", "30",
+                "--key", str(self.data / "key.pem"), "--fps", str(conf.get("fps", 30)),
                 "--egfx-codec", "avc420", "--audio-mode", "mirror" if conf["audio"] else "off",
                 *display_args(conf),
                 "--on-session-start", shlex.join(callback + ["start", generation]),

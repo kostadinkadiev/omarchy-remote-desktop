@@ -166,6 +166,24 @@ class HelperTests(unittest.TestCase):
         # A virtual display captures nothing, so no output is ever recorded.
         self.assertEqual(clean["output"], "")
 
+    def test_frame_rate_is_offered_from_a_fixed_set(self):
+        self.assertEqual(rd.validate(GOOD)["fps"], 30)
+        for rate in rd.FRAME_RATES:
+            self.assertEqual(rd.validate({**GOOD, "fps": rate})["fps"], rate)
+        for bad in (15, 61, 0, -30, "60", True, 30.0, None):
+            with self.subTest(fps=repr(bad)), self.assertRaises(rd.Problem):
+                rd.validate({**GOOD, "fps": bad})
+
+    def test_backend_receives_the_chosen_frame_rate(self):
+        self.configured()
+        for rate in (24, 60):
+            conf = rd.validate({**GOOD, "fps": rate})
+            args = self.app.backend_args(conf, "gen")
+            self.assertEqual(args[args.index("--fps") + 1], str(rate))
+        # Settings predating the setting fall back to the original rate.
+        args = self.app.backend_args(rd.validate(GOOD), "gen")
+        self.assertEqual(args[args.index("--fps") + 1], "30")
+
     def test_settings_without_a_mode_still_share_a_monitor(self):
         legacy = rd.validate(GOOD)
         self.assertEqual(legacy["mode"], "monitor")

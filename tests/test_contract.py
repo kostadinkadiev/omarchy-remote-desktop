@@ -51,6 +51,11 @@ class ContractTests(unittest.TestCase):
             self.assertIsNotNone(block, name)
             self.assertIn("visible: " + shown, block.group(0))
         self.assertIn('mode: displayMode.value || "monitor"', source)
+        # Frame rate applies to both display modes, so it is never hidden.
+        block = re.search(r"Ui\.Dropdown\s*\{[^{}]*id: frameRate\b.*?\n                        \}", source, re.S)
+        self.assertIsNotNone(block)
+        self.assertNotIn("visible:", block.group(0))
+        self.assertIn("fps: Number(frameRate.value || 30)", source)
 
     def test_setup_never_places_password_in_command_array(self):
         service = (ROOT / "Service.qml").read_text()

@@ -30,6 +30,7 @@ Ui.Panel {
     property string chosenMode: "monitor"
     property string chosenResolution: "2560x1440"
     property string chosenScale: "1"
+    property string chosenFps: "30"
     readonly property bool virtualDisplay: chosenMode === "virtual"
 
     function restoreChoices() {
@@ -48,6 +49,7 @@ Ui.Panel {
         chosenMode = config.mode || "monitor"
         chosenResolution = config.resolution || "2560x1440"
         chosenScale = String(config.scale || 1)
+        chosenFps = String(config.fps || 30)
         restoreChoices()
     }
 
@@ -56,6 +58,7 @@ Ui.Panel {
             output: monitor.value || "", address: network.value || "",
             mode: displayMode.value || "monitor",
             resolution: resolution.value || "", scale: Number(displayScale.value || 1),
+            fps: Number(frameRate.value || 30),
             username: username.text, password: password.text, port: port.value,
             audio: audio.checked
         }, enable)
@@ -326,6 +329,23 @@ Ui.Panel {
                                       { value: "2", label: "2× (HiDPI)" }]
                             value: root.chosenScale
                             onChanged: function(value) { root.chosenScale = value }
+                        }
+                        Ui.Dropdown {
+                            id: frameRate
+                            Layout.fillWidth: true
+                            label: "Frame rate"
+                            options: [{ value: "24", label: "24 fps" },
+                                      { value: "30", label: "30 fps (default)" },
+                                      { value: "45", label: "45 fps" },
+                                      { value: "60", label: "60 fps" }]
+                            value: root.chosenFps
+                            onChanged: function(value) { root.chosenFps = value }
+                        }
+                        Caption {
+                            Layout.fillWidth: true
+                            text: "Higher frame rates need more from this computer's video encoder, which runs out before the network does. Lower it if the picture stutters."
+                            wrapMode: Text.Wrap
+                            opacity: 0.6
                         }
                         Caption {
                             Layout.fillWidth: true

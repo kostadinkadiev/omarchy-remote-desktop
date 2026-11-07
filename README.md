@@ -26,7 +26,7 @@ Screenshots use sample connection details.
    has no login rate limiting, so prefer the generator or a longer passphrase.
 
 The compact panel shows status, address, username and copy buttons. Windows
-connection files and connection instructions are one click away. Settings contains the display choice, network selection, credential replacement and audio. **Disconnect** appears only while a client is connected and ends that session without turning Remote Desktop off. The main toggle remembers your choice: On resumes access
+connection files and connection instructions are one click away. Settings contains the display choice, frame rate, network selection, credential replacement and audio. **Disconnect** appears only while a client is connected and ends that session without turning Remote Desktop off. The main toggle remembers your choice: On resumes access
 after desktop login; Off keeps access off after reboot. **Share audio** plays sound on both this computer and the
 remote device; when off, sound stays local. Installing the plugin itself never starts remote access.
 
@@ -88,6 +88,11 @@ matching it to the device you connect from gives a sharp, correctly shaped
 picture with no scaling. It is a separate screen on the same desktop rather than
 a copy of a local one, and it works on a machine with no monitor attached. Pick
 a scale of 2 for a HiDPI client.
+
+**Frame rate** applies to either display and defaults to 30. Higher rates need
+more from this computer's video encoder, which is the limiting factor on
+integrated graphics well before the network is. Lower it if the picture
+stutters; raise it for smoother motion at a smaller size.
 
 ## What is shared
 
