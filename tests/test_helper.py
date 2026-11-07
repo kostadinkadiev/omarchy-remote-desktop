@@ -150,6 +150,42 @@ class HelperTests(unittest.TestCase):
         self.assertNotIn(PASSWORD, text)
         self.assertNotIn("password", text)
 
+    def test_virtual_display_geometry_is_validated(self):
+        base = {k: v for k, v in GOOD.items() if k != "output"}
+        for bad in ({"resolution": "639x480"}, {"resolution": "1920x4321"}, {"resolution": "1920"},
+                    {"resolution": "1920x1080; rm -rf /"}, {"resolution": ""},
+                    {"resolution": "1920x1080", "scale": 0.5}, {"resolution": "1920x1080", "scale": 4},
+                    {"resolution": "1920x1080", "scale": True}, {"resolution": "1920x1080", "scale": "2"}):
+            with self.subTest(bad=bad), self.assertRaises(rd.Problem):
+                rd.validate({**base, "mode": "virtual", **bad})
+        with self.assertRaises(rd.Problem):
+            rd.validate({**base, "mode": "headless"})
+        clean = rd.validate({**base, "mode": "virtual", "resolution": "2880x1800", "scale": 2})
+        self.assertEqual(clean["resolution"], "2880x1800")
+        self.assertEqual(clean["scale"], 2)
+        # A virtual display captures nothing, so no output is ever recorded.
+        self.assertEqual(clean["output"], "")
+
+    def test_settings_without_a_mode_still_share_a_monitor(self):
+        legacy = rd.validate(GOOD)
+        self.assertEqual(legacy["mode"], "monitor")
+        self.assertEqual(legacy["output"], "DP-1")
+        self.assertEqual(rd.display_args(legacy), ["--output", "DP-1"])
+        # Older settings.json has no mode key at all, not even a default.
+        self.assertEqual(rd.display_args({"output": "DP-1"}), ["--output", "DP-1"])
+
+    def test_virtual_display_omits_output_and_survives_monitor_loss(self):
+        conf = rd.validate({**{k: v for k, v in GOOD.items() if k != "output"},
+                            "mode": "virtual", "resolution": "2880x1800", "scale": 2})
+        args = rd.display_args(conf)
+        self.assertEqual(args, ["--resolution", "2880x1800", "--scale", "2"])
+        # Omitting --output is what makes the backend manage a headless output.
+        self.assertNotIn("--output", args)
+        # No monitor attached at all must not stop a virtual display.
+        self.app.match_inventory(conf, dict(outputs=[], addresses=LIVE["addresses"]))
+        with self.assertRaises(rd.Problem):
+            self.app.match_inventory(conf, dict(outputs=[], addresses=[]))
+
     def test_inventory_disappearance_never_falls_back(self):
         self.app.match_inventory(GOOD, LIVE)
         for missing in (dict(outputs=[], addresses=LIVE["addresses"]),

@@ -190,9 +190,18 @@ def validate(values):
     username = values.get("username", "")
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.@-]{0,63}", username):
         raise Problem("Username: use 1–64 letters, numbers, dots, @, underscores or hyphens.")
+    # Settings written before virtual displays existed carry no mode.
+    mode = values.get("mode", "monitor")
+    if mode not in ("monitor", "virtual"):
+        raise Problem("Choose either a shared monitor or a virtual display.")
     output = values.get("output", "")
-    if not isinstance(output, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", output):
-        raise Problem("Choose a connected physical monitor.")
+    if mode == "monitor":
+        if not isinstance(output, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", output):
+            raise Problem("Choose a connected physical monitor.")
+    else:
+        # A virtual display never captures a real output, so none is recorded.
+        output = ""
+    resolution, scale = validate_display(mode, values)
     port = values.get("port", 3389)
     if type(port) is not int or not 1024 <= port <= 65535:
         raise Problem("Port must be a number between 1024 and 65535.")
@@ -200,7 +209,23 @@ def validate(values):
         if type(values.get(key, False)) is not bool:
             raise Problem(f"Invalid {key} setting.")
     return dict(address=str(ip), port=port, username=username, output=output,
+                mode=mode, resolution=resolution, scale=scale,
                 autostart=values.get("autostart", False), audio=values.get("audio", False))
+
+
+def validate_display(mode, values):
+    """Geometry for a virtual display. Ignored, and left blank, for a monitor."""
+    if mode != "virtual":
+        return "", 1
+    resolution = values.get("resolution", "")
+    match = re.fullmatch(r"([0-9]{3,5})x([0-9]{3,5})", resolution) if isinstance(resolution, str) else None
+    if not match or not (640 <= int(match.group(1)) <= 7680 and 480 <= int(match.group(2)) <= 4320):
+        raise Problem("Choose a virtual display size between 640x480 and 7680x4320.")
+    scale = values.get("scale", 1)
+    if type(scale) not in (int, float) or type(scale) is bool or not 1 <= scale <= 3:
+        raise Problem("Display scale must be a number between 1 and 3.")
+    # Keep the stored value exact so the backend argument is reproducible.
+    return resolution, int(scale) if float(scale).is_integer() else round(float(scale), 2)
 
 
 def validate_password(password):
@@ -411,7 +436,9 @@ WantedBy=graphical-session.target
 
     @staticmethod
     def match_inventory(conf, live):
-        if conf["output"] not in [o["name"] for o in live["outputs"]]:
+        # A virtual display is created by the backend, so losing a monitor (or
+        # never having one) must not stop access the way a shared monitor does.
+        if conf.get("mode", "monitor") == "monitor" and conf["output"] not in [o["name"] for o in live["outputs"]]:
             raise Problem("The selected monitor is unavailable. Reconnect it or choose another.")
         if conf["address"] not in [a["address"] for a in live["addresses"]]:
             raise Problem("The selected network is unavailable. Reconnect or choose another address.")
@@ -550,8 +577,9 @@ WantedBy=graphical-session.target
         return [shutil.which("hypr-rdp") or "hypr-rdp", "--config", str(self.data / "backend.toml"),
                 "--bind", f'{conf["address"]}:{conf["port"]}', "--username", conf["username"],
                 "--password-file", str(self.data / "password"), "--cert", str(self.data / "cert.pem"),
-                "--key", str(self.data / "key.pem"), "--output", conf["output"], "--fps", "30",
+                "--key", str(self.data / "key.pem"), "--fps", "30",
                 "--egfx-codec", "avc420", "--audio-mode", "mirror" if conf["audio"] else "off",
+                *display_args(conf),
                 "--on-session-start", shlex.join(callback + ["start", generation]),
                 "--on-session-end", shlex.join(callback + ["end", generation])]
 
@@ -626,6 +654,13 @@ WantedBy=graphical-session.target
                 except subprocess.TimeoutExpired:
                     child.kill()
                     child.wait()
+
+
+def display_args(conf):
+    """Omitting --output is what makes the backend manage a headless output."""
+    if conf.get("mode", "monitor") == "virtual":
+        return ["--resolution", conf["resolution"], "--scale", str(conf["scale"])]
+    return ["--output", conf["output"]]
 
 
 def child_listens(pid, address, port):

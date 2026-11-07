@@ -41,6 +41,17 @@ class ContractTests(unittest.TestCase):
         self.assertIn("Commons.Color.", source)
         self.assertEqual(re.findall(r"(?<![.\w])Color\.", source), [])
 
+    def test_virtual_display_controls_are_mutually_exclusive(self):
+        source = (ROOT / "Panel.qml").read_text()
+        for name, shown in (("monitor", "!root.virtualDisplay"),
+                            ("resolution", "root.virtualDisplay"),
+                            ("displayScale", "root.virtualDisplay")):
+            block = re.search(r"Ui\.Dropdown\s*\{[^{}]*id: " + name + r"\b.*?\n                        \}",
+                              source, re.S)
+            self.assertIsNotNone(block, name)
+            self.assertIn("visible: " + shown, block.group(0))
+        self.assertIn('mode: displayMode.value || "monitor"', source)
+
     def test_setup_never_places_password_in_command_array(self):
         service = (ROOT / "Service.qml").read_text()
         self.assertIn('worker.command = ["/usr/bin/python3", helper, command]', service)

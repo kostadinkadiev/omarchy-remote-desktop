@@ -27,6 +27,10 @@ Ui.Panel {
     property bool counted: false
     property string chosenOutput: ""
     property string chosenAddress: ""
+    property string chosenMode: "monitor"
+    property string chosenResolution: "2560x1440"
+    property string chosenScale: "1"
+    readonly property bool virtualDisplay: chosenMode === "virtual"
 
     function restoreChoices() {
         if (!chosenOutput && monitor.options.length) chosenOutput = monitor.options[0].value
@@ -41,12 +45,17 @@ Ui.Panel {
         audio.checked = config.audio === true
         chosenOutput = config.output || ""
         chosenAddress = config.address || ""
+        chosenMode = config.mode || "monitor"
+        chosenResolution = config.resolution || "2560x1440"
+        chosenScale = String(config.scale || 1)
         restoreChoices()
     }
 
     function save(enable) {
         backend.configure({
             output: monitor.value || "", address: network.value || "",
+            mode: displayMode.value || "monitor",
+            resolution: resolution.value || "", scale: Number(displayScale.value || 1),
             username: username.text, password: password.text, port: port.value,
             audio: audio.checked
         }, enable)
@@ -238,7 +247,9 @@ Ui.Panel {
                         }
                         Caption {
                             Layout.fillWidth: true
-                            text: "Sharing " + (root.snapshot.settings.output || "")
+                            text: root.snapshot.settings.mode === "virtual"
+                                ? "Virtual display " + (root.snapshot.settings.resolution || "")
+                                : "Sharing " + (root.snapshot.settings.output || "")
                             visible: root.serving
                             opacity: 0.6
                         }
@@ -272,13 +283,56 @@ Ui.Panel {
                         enabled: !root.busy
                         Caption { text: "Share this desktop"; textFormat: Text.PlainText; color: Commons.Color.foreground }
                         Ui.Dropdown {
+                            id: displayMode
+                            Layout.fillWidth: true
+                            label: "Display"
+                            options: [{ value: "monitor", label: "Share a monitor" },
+                                      { value: "virtual", label: "Virtual display" }]
+                            value: root.chosenMode
+                            onChanged: function(value) { root.chosenMode = value }
+                        }
+                        Ui.Dropdown {
                             id: monitor
+                            visible: !root.virtualDisplay
                             Layout.fillWidth: true
                             label: "Monitor"
                             options: (root.capabilities.environment.outputs || []).map(function(item) { return { value: item.name, label: item.name } })
                             value: root.chosenOutput
                             onChanged: function(value) { root.chosenOutput = value }
                             onOptionsChanged: Qt.callLater(root.restoreChoices)
+                        }
+                        Ui.Dropdown {
+                            id: resolution
+                            visible: root.virtualDisplay
+                            Layout.fillWidth: true
+                            label: "Size"
+                            options: [{ value: "1366x768", label: "1366 × 768" },
+                                      { value: "1920x1080", label: "1920 × 1080" },
+                                      { value: "1920x1200", label: "1920 × 1200" },
+                                      { value: "2560x1440", label: "2560 × 1440" },
+                                      { value: "2560x1600", label: "2560 × 1600" },
+                                      { value: "2880x1800", label: "2880 × 1800" },
+                                      { value: "3840x2160", label: "3840 × 2160" }]
+                            value: root.chosenResolution
+                            onChanged: function(value) { root.chosenResolution = value }
+                        }
+                        Ui.Dropdown {
+                            id: displayScale
+                            visible: root.virtualDisplay
+                            Layout.fillWidth: true
+                            label: "Scale"
+                            options: [{ value: "1", label: "1× (standard)" },
+                                      { value: "1.5", label: "1.5×" },
+                                      { value: "2", label: "2× (HiDPI)" }]
+                            value: root.chosenScale
+                            onChanged: function(value) { root.chosenScale = value }
+                        }
+                        Caption {
+                            Layout.fillWidth: true
+                            visible: root.virtualDisplay
+                            text: "A virtual display is a separate screen created on this computer. Match its size to the device you connect from. Nothing on the local monitors is shared, and no monitor needs to be attached."
+                            wrapMode: Text.Wrap
+                            opacity: 0.6
                         }
                         Ui.Dropdown {
                             id: network
@@ -291,7 +345,7 @@ Ui.Panel {
                         }
                         Caption {
                             Layout.fillWidth: true
-                            visible: monitor.options.length === 0 || network.options.length === 0
+                            visible: (monitor.options.length === 0 && !root.virtualDisplay) || network.options.length === 0
                             text: "Connect a physical monitor and a private LAN or VPN, and they will appear here."
                             textFormat: Text.PlainText
                             wrapMode: Text.Wrap
@@ -353,7 +407,8 @@ Ui.Panel {
                         RowLayout {
                             DesktopButton {
                                 text: root.editing ? "Save settings" : "Enable Remote Desktop"
-                                enabled: root.capabilities.compatible === true && monitor.options.length > 0 && network.options.length > 0
+                                enabled: root.capabilities.compatible === true && network.options.length > 0
+                                         && (root.virtualDisplay || monitor.options.length > 0)
                                 onClicked: root.save(root.editing ? root.serving : true)
                             }
                             DesktopButton { visible: root.editing; text: "Cancel"; onClicked: { password.text = ""; root.editing = false } }

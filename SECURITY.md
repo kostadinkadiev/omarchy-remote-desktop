@@ -44,6 +44,11 @@ authentication, cryptography or input handling.
 
 ## Network and UI
 
+A virtual display shows only its own contents: the local monitors are never
+captured in that mode, and the backend creates the screen rather than the plugin
+reading an existing one. Its size and scale are validated against fixed bounds
+and passed as separate arguments, never interpolated into a command line.
+
 Only an explicitly selected private IPv4 address is allowed. No public/wildcard
 binding, router forwarding, firewall edits, SSH enabling or VPN setup occurs.
 RFC1918 and carrier-grade NAT ranges are accepted; range membership alone is not

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "kokd.remote-desktop",
   "name": "Remote Desktop",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Kostadin Kadiev",
   "license": "MIT",
   "description": "Share your existing Omarchy desktop over RDP with simple setup, private-network binding and native shell controls.",

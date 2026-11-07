@@ -19,13 +19,14 @@ Screenshots use sample connection details.
 
 1. Open **Remote Desktop** in the Omarchy bar.
 2. Install a compatible backend when prompted, then click **Check again**.
-3. Choose a physical monitor and your LAN or existing private-VPN address.
+3. Choose **Share a monitor** or a **Virtual display**, then your LAN or
+   existing private-VPN address.
 4. Create RDP credentials (or generate a password), save them, and click
    **Enable Remote Desktop**. Passwords must be at least 8 characters; the server
    has no login rate limiting, so prefer the generator or a longer passphrase.
 
 The compact panel shows status, address, username and copy buttons. Windows
-connection files and connection instructions are one click away. Settings contains monitor/network selection, credential replacement and audio. **Disconnect** appears only while a client is connected and ends that session without turning Remote Desktop off. The main toggle remembers your choice: On resumes access
+connection files and connection instructions are one click away. Settings contains the display choice, network selection, credential replacement and audio. **Disconnect** appears only while a client is connected and ends that session without turning Remote Desktop off. The main toggle remembers your choice: On resumes access
 after desktop login; Off keeps access off after reboot. **Share audio** plays sound on both this computer and the
 remote device; when off, sound stays local. Installing the plugin itself never starts remote access.
 
@@ -76,14 +77,30 @@ self-signed and retained across restarts; it is not a public CA identity.
 Your RDP password is separate from your Linux password. If the desktop is locked,
 normal Omarchy unlock is still required after RDP authentication. See the acceptance checklist for recorded client tests.
 
+## Choosing a display
+
+**Share a monitor** mirrors one physical screen, so the picture is whatever
+resolution that monitor runs at. Connecting from a device with a different size
+or aspect ratio means scaling, letterboxing, or both.
+
+**Virtual display** asks the backend to create a screen at a size you pick, so
+matching it to the device you connect from gives a sharp, correctly shaped
+picture with no scaling. It is a separate screen on the same desktop rather than
+a copy of a local one, and it works on a machine with no monitor attached. Pick
+a scale of 2 for a HiDPI client.
+
 ## What is shared
 
-- One selected physical monitor. Its contents remain visible locally.
+- **Share a monitor:** one selected physical monitor. Its contents remain
+  visible locally, and anyone at the machine sees the same screen.
+- **Virtual display:** a separate screen created at a size you choose. Nothing
+  on the local monitors is shared, and no monitor needs to be attached.
 - Keyboard and pointer control; the backend's clipboard sharing is active.
 - Audio only if enabled in Settings.
 
-No virtual desktop, separate user session, pre-login access, wake-on-LAN or local
-screen blanking is provided. Locking, display power saving and sleep remain under
+A virtual display is an additional screen inside the existing Hyprland session,
+not a separate user session. No separate login, pre-login access, wake-on-LAN or
+local screen blanking is provided. Locking, display power saving and sleep remain under
 Omarchy's normal controls. A sleeping or logged-out machine cannot be reached.
 [Server Mode](https://github.com/0x1ocean/omarchy-server-mode) is an optional power
 management companion, not a dependency. Preventing sleep does not guarantee a
@@ -113,7 +130,8 @@ computer can reach the server or that the release has passed compatibility tests
 
 Access runs in `omarchy-remote-desktop.service`, independently of the bar. Shell
 reloads do not interrupt it. Logout stops it. Missing credentials, a missing
-monitor/network, backend failure, plugin disable or plugin removal stop serving.
+network, backend failure, plugin disable or plugin removal stop serving. A lost
+monitor also stops a shared monitor, but never a virtual display.
 Automatic recovery to a different monitor or address is never attempted.
 
 The panel switch turns access off and cancels startup after login. Saving settings
