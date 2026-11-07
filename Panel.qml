@@ -107,7 +107,9 @@ Ui.Panel {
         open: root.opened
         focusTarget: panelBody
         contentWidth: popup.fittedContentWidth(Style.space(360))
-        contentHeight: popup.fittedContentHeight(column.implicitHeight, Style.space(620))
+        // Settings grew a display mode, size, scale and frame rate; the cap still
+        // yields to the panel's own available height on a short screen.
+        contentHeight: popup.fittedContentHeight(column.implicitHeight, Style.space(820))
 
         Pane {
             id: panelBody
@@ -343,14 +345,14 @@ Ui.Panel {
                         }
                         Caption {
                             Layout.fillWidth: true
-                            text: "Higher frame rates need more from this computer's video encoder, which runs out before the network does. Lower it if the picture stutters."
+                            text: "Higher rates ask more of this computer's video encoder. Lower it if the picture stutters."
                             wrapMode: Text.Wrap
                             opacity: 0.6
                         }
                         Caption {
                             Layout.fillWidth: true
                             visible: root.virtualDisplay
-                            text: "A virtual display is a separate screen created on this computer. Match its size to the device you connect from. Nothing on the local monitors is shared, and no monitor needs to be attached."
+                            text: "A separate screen on this computer, sized to match the device you connect from. Nothing on the local monitors is shared."
                             wrapMode: Text.Wrap
                             opacity: 0.6
                         }
