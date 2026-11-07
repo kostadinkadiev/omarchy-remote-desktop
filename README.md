@@ -14,7 +14,7 @@ are recorded in [compatibility](docs/COMPATIBILITY.md).
 
 [Settings screenshot](screenshots/settings.png) · [Connection help](screenshots/connection-help.png)
 
-Screenshots use sample connection details.
+Screenshots use sample connection details and show a virtual display.
 
 ## Simple setup
 
