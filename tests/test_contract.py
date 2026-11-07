@@ -32,6 +32,15 @@ class ContractTests(unittest.TestCase):
         self.assertIsNotNone(block)
         self.assertIn('visible: root.snapshot.state === "Connected"', block.group(0))
 
+    def test_theme_colours_are_addressed_through_the_commons_alias(self):
+        # Quickshell ships its own Color value type, which shadows the Commons
+        # singleton wherever Commons is imported unqualified. Every colour then
+        # silently reads as undefined, so the alias is load-bearing.
+        source = (ROOT / "Panel.qml").read_text()
+        self.assertIn("import qs.Commons as Commons", source)
+        self.assertIn("Commons.Color.", source)
+        self.assertEqual(re.findall(r"(?<![.\w])Color\.", source), [])
+
     def test_setup_never_places_password_in_command_array(self):
         service = (ROOT / "Service.qml").read_text()
         self.assertIn('worker.command = ["/usr/bin/python3", helper, command]', service)

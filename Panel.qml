@@ -3,6 +3,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import qs.Commons
+// Quickshell's own Color value type shadows the Commons singleton when it is
+// imported unqualified, so colours are addressed through this alias, as
+// Omarchy's own shell plugins do.
+import qs.Commons as Commons
 import qs.Ui as Ui
 import "lib/Model.js" as Model
 
@@ -78,7 +82,7 @@ Ui.Panel {
         bar: root.bar
         text: "󰢹"
         active: root.serving
-        activeColor: Color.accent
+        activeColor: Commons.Color.accent
         tooltipText: "Remote Desktop · " + root.snapshot.state
         onPressed: root.toggle()
     }
@@ -89,24 +93,24 @@ Ui.Panel {
         owner: root
         bar: root.bar
         open: root.opened
-        focusTarget: content
+        focusTarget: panelBody
         contentWidth: popup.fittedContentWidth(Style.space(360))
         contentHeight: popup.fittedContentHeight(column.implicitHeight, Style.space(620))
 
         Pane {
-            id: content
+            id: panelBody
             objectName: "remoteDesktopContent"
             anchors.fill: parent
             padding: 0
             background: null
-            palette.window: Color.background
-            palette.windowText: Color.foreground
-            palette.base: Color.background
-            palette.text: Color.foreground
-            palette.button: Qt.lighter(Color.background, 1.5)
-            palette.buttonText: Color.foreground
-            palette.highlight: Color.accent
-            palette.highlightedText: Color.background
+            palette.window: Commons.Color.background
+            palette.windowText: Commons.Color.foreground
+            palette.base: Commons.Color.background
+            palette.text: Commons.Color.foreground
+            palette.button: Qt.lighter(Commons.Color.background, 1.5)
+            palette.buttonText: Commons.Color.foreground
+            palette.highlight: Commons.Color.accent
+            palette.highlightedText: Commons.Color.background
             Keys.onEscapePressed: root.close()
 
             ScrollView {
@@ -115,7 +119,7 @@ Ui.Panel {
                 contentWidth: availableWidth
                 ColumnLayout {
                     id: column
-                    width: content.width
+                    width: panelBody.width
                     spacing: Style.space(10)
 
                     RowLayout {
@@ -123,7 +127,7 @@ Ui.Panel {
                         Caption {
                             text: root.editing ? "Remote Desktop settings" : "Remote Desktop"
                             textFormat: Text.PlainText
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                             font.bold: true
                             font.pixelSize: Style.font.subtitle
                             Layout.fillWidth: true
@@ -144,7 +148,7 @@ Ui.Panel {
                             : root.snapshot.state === "Ready" ? "Ready to connect"
                             : root.snapshot.state === "Off" ? "Remote access is off" : root.snapshot.state
                         textFormat: Text.PlainText
-                        color: Color.foreground
+                        color: Commons.Color.foreground
                         opacity: 0.7
                     }
                     Caption {
@@ -160,7 +164,7 @@ Ui.Panel {
                         text: (root.backend ? root.backend.error : "") || root.snapshot.error || ""
                         textFormat: Text.PlainText
                         wrapMode: Text.Wrap
-                        color: Color.urgent
+                        color: Commons.Color.urgent
                     }
                     Caption {
                         Layout.fillWidth: true
@@ -168,7 +172,7 @@ Ui.Panel {
                         text: root.backend ? root.backend.notice : ""
                         textFormat: Text.PlainText
                         wrapMode: Text.WrapAnywhere
-                        color: Color.foreground
+                        color: Commons.Color.foreground
                     }
 
                     ColumnLayout {
@@ -179,7 +183,7 @@ Ui.Panel {
                             text: root.capabilities.message || "Checking compatibility…"
                             textFormat: Text.PlainText
                             wrapMode: Text.Wrap
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                         }
                         RowLayout {
                             DesktopButton {
@@ -202,7 +206,7 @@ Ui.Panel {
                             font.pixelSize: Style.font.caption
                             opacity: 0.6
                             textFormat: Text.PlainText
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -210,15 +214,16 @@ Ui.Panel {
                                 Layout.fillWidth: true
                                 text: root.snapshot.address || ""
                                 textFormat: Text.PlainText
-                                color: Color.foreground
+                                color: Commons.Color.foreground
                                 font.bold: true
                                 wrapMode: Text.WrapAnywhere
                             }
                             DesktopButton {
+                                id: copyAddress
                                 text: copied ? "Copied" : "Copy address"
                                 property bool copied: false
                                 onClicked: { Quickshell.clipboardText = root.snapshot.address || ""; copied = true; copyReset.restart() }
-                                Timer { id: copyReset; interval: 1800; onTriggered: parent.copied = false }
+                                Timer { id: copyReset; interval: 1800; onTriggered: copyAddress.copied = false }
                             }
                         }
                         RowLayout {
@@ -227,7 +232,7 @@ Ui.Panel {
                                 Layout.fillWidth: true
                                 text: "Username: " + (root.snapshot.settings.username || "")
                                 textFormat: Text.PlainText
-                                color: Color.foreground
+                                color: Commons.Color.foreground
                             }
 
                         }
@@ -265,7 +270,7 @@ Ui.Panel {
                         Layout.fillWidth: true
                         visible: !root.snapshot.configured || root.editing
                         enabled: !root.busy
-                        Caption { text: "Share this desktop"; textFormat: Text.PlainText; color: Color.foreground }
+                        Caption { text: "Share this desktop"; textFormat: Text.PlainText; color: Commons.Color.foreground }
                         Ui.Dropdown {
                             id: monitor
                             Layout.fillWidth: true
@@ -290,9 +295,9 @@ Ui.Panel {
                             text: "Connect a physical monitor and a private LAN or VPN, and they will appear here."
                             textFormat: Text.PlainText
                             wrapMode: Text.Wrap
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                         }
-                        Caption { text: root.snapshot.configured ? "Login details" : "Create login details"; textFormat: Text.PlainText; color: Color.foreground }
+                        Caption { text: root.snapshot.configured ? "Login details" : "Create login details"; textFormat: Text.PlainText; color: Commons.Color.foreground }
                         Ui.TextField {
                             id: username
                             Layout.fillWidth: true
@@ -319,13 +324,13 @@ Ui.Panel {
                             text: "Save these credentials before enabling. They are separate from your Linux login."
                             textFormat: Text.PlainText
                             wrapMode: Text.Wrap
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                             opacity: 0.7
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
                             RowLayout {
-                                Caption { text: "Port"; textFormat: Text.PlainText; color: Color.foreground }
+                                Caption { text: "Port"; textFormat: Text.PlainText; color: Commons.Color.foreground }
                                 Ui.NumberField { id: port; from: 1024; to: 65535; value: 3389; onModified: function(value) { port.value = value }; Accessible.name: "RDP port" }
                             }
                             Ui.Toggle { id: audio; label: "Share audio"; description: "Play on this computer and the remote device"; Layout.fillWidth: true; onClicked: checked = !checked }
@@ -336,7 +341,7 @@ Ui.Panel {
                             text: "Your screen and clipboard are shared. Locking and sleep still apply."
                             textFormat: Text.PlainText
                             wrapMode: Text.Wrap
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                         }
                         Caption {
                             Layout.fillWidth: true
@@ -364,14 +369,14 @@ Ui.Panel {
                             text: "Android: connect Tailscale when using a Tailscale address, then add this PC in Windows App.\n\nWindows: open Remote Desktop Connection (mstsc), enter the address above and your RDP credentials. You can also open the exported connection file.\n\nMac: in Microsoft Windows App, import the .rdp file or choose Add PC and enter the address and RDP credentials.\n\nConnect both computers to the same LAN or private VPN. Do not forward the RDP port on your router. A sleeping or logged-out computer cannot be reached. Server Mode is an optional companion for sleep protection.\n\nIf Omarchy is locked, its normal unlock is still required after RDP authentication."
                             textFormat: Text.PlainText
                             wrapMode: Text.Wrap
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                         }
                         Caption {
                             Layout.fillWidth: true
                             text: "Before accepting the first certificate, compare its SHA-256 fingerprint:\n" + (root.snapshot.fingerprint || "Available after setup")
                             textFormat: Text.PlainText
                             wrapMode: Text.WrapAnywhere
-                            color: Color.foreground
+                            color: Commons.Color.foreground
                         }
                     }
 
@@ -402,7 +407,7 @@ Ui.Panel {
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         textFormat: Text.PlainText
-        color: Color.foreground
+        color: Commons.Color.foreground
     }
 
 }
