@@ -54,15 +54,15 @@ binding, router forwarding, firewall edits, SSH enabling or VPN setup occurs.
 RFC1918 and carrier-grade NAT ranges are accepted; range membership alone is not
 proof that a network is trusted. Users must apply suitable firewall/VPN policies.
 
-Restricting who can reach the port matters beyond authentication. On the
-previously pinned backend build, a single TCP connection that never
-authenticates blocked every valid login for as long as it stayed open, and the
-server never timed it out, so any peer able to reach the port could keep the
-owner out without credentials. `tests/backend-smoke <binary> --live` reproduces
-this against a localhost listener. Upstream has since reworked connection
-handling and this has not yet been re-measured on 0.1.8. Until it is, allow only
-the intended client through your firewall or VPN policy (for Tailscale, an ACL
-naming that device).
+Restricting who can reach the port matters beyond authentication. TCP
+connections that never authenticate hold the backend, and it never drops them:
+on the previously pinned build one such connection blocked every valid login for
+as long as it stayed open, and on 0.1.8 two do. Any peer able to reach the port
+can therefore keep the owner out without credentials, on every release measured.
+`tests/backend-smoke <binary> --live` reproduces this against a localhost
+listener. The plugin requires 0.1.8, which at least removes the single-connection
+case, but cannot fix the rest: allow only the intended client through your
+firewall or VPN policy (for Tailscale, an ACL naming that device).
 
 A persistent self-signed RSA certificate secures transport; users compare its
 SHA-256 fingerprint on first connection. Expired or partial certificates block

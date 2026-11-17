@@ -110,17 +110,22 @@ with tempfile.TemporaryDirectory(prefix="rdp-backend-smoke-") as temporary:
                 print(f"  {name}: {'accepted' if accepted else 'rejected'} (exit {status})")
             print("Authentication accepted only the configured user and password")
 
-            # A peer that opens a connection and never authenticates. The plugin cannot
+            # Peers that open a connection and never authenticate. The plugin cannot
             # change this; the result is reported so it is measured rather than assumed.
-            with socket.create_connection(("127.0.0.1", port), timeout=3):
-                held = authenticate("/u:test-user", f"/p:{secret}", timeout=10)
-            if held is None:
-                print("FINDING: an idle connection that never authenticated blocked a valid login"
-                      " for the full 10 s check (upstream behaviour; see docs/COMPATIBILITY.md)")
-            else:
-                print(f"An idle unauthenticated connection did not block a valid login (exit {held})")
-            assert authenticate("/u:test-user", f"/p:{secret}") == 0, "Valid login failed once the idle peer left"
-            print("A valid login succeeds again once the idle peer disconnects")
+            for crowd in (1, 2):
+                idle = [socket.create_connection(("127.0.0.1", port), timeout=3) for _ in range(crowd)]
+                try:
+                    held = authenticate("/u:test-user", f"/p:{secret}", timeout=10)
+                finally:
+                    for peer in idle:
+                        peer.close()
+                if held is None:
+                    print(f"FINDING: {crowd} idle connection(s) that never authenticated blocked a valid"
+                          " login for the full 10 s check (upstream behaviour; see docs/COMPATIBILITY.md)")
+                else:
+                    print(f"  {crowd} idle connection(s) did not block a valid login (exit {held})")
+                assert authenticate("/u:test-user", f"/p:{secret}") == 0, "Valid login failed once idle peers left"
+            print("A valid login succeeds again once the idle peers disconnect")
     finally:
         if child.poll() is None:
             child.terminate()

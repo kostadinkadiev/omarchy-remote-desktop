@@ -36,9 +36,10 @@ offers an explicit **Install RDP backend** action that opens a terminal and runs
 `omarchy pkg aur add hypr-rdp`. The AUR package builds from source, so expect
 several minutes and several GB of disk the first time.
 
-The plugin checks the binary for the password-file and session-hook interfaces it
-needs and refuses anything that lacks them, whatever its version. Release 0.1.6
-and later provide them; earlier releases do not. The AUR package is maintained by
+The plugin requires `hypr-rdp` 0.1.8 or newer and refuses older releases, or any
+binary lacking the password-file and session-hook interfaces it needs. Even on
+0.1.8, a couple of connections that never sign in can keep you out, so allow only
+your own devices to reach the port; see [security](SECURITY.md). The AUR package is maintained by
 the upstream hypr-rdp author and builds a checksum-pinned upstream release tag;
 see [security](SECURITY.md) for its provenance.
 
@@ -55,7 +56,7 @@ The first command builds `hypr-rdp` from source and can take several minutes. If
 you skip it, the panel offers the same step as **Install RDP backend**.
 
 Requirements: Omarchy's Quickshell shell, Hyprland 0.54+, Python 3.10+, systemd
-user services, OpenSSL, iproute2 and `hypr-rdp` 0.1.6 or newer on PATH.
+user services, OpenSSL, iproute2 and `hypr-rdp` 0.1.8 or newer on PATH.
 The backend also requires its normal graphics/capture and audio dependencies.
 Use the desktop's existing Wayland environment; do not run the helper as root.
 

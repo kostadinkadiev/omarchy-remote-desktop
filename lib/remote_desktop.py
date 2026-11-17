@@ -293,16 +293,38 @@ def inventory():
         raise Problem("Cannot read monitors or network addresses. Try refreshing.") from None
 
 
+# Older releases let one connection that never signs in hold off every other
+# client indefinitely. 0.1.8 tolerates one such connection but not two, so it is
+# the minimum, not a cure; see docs/COMPATIBILITY.md and SECURITY.md.
+MINIMUM_BACKEND = (0, 1, 8)
+
+
+def backend_version(text):
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", text)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
 def check_backend():
     binary = shutil.which("hypr-rdp")
     if not binary:
         return dict(installed=False, compatible=False,
                     message="Install the hypr-rdp package to continue.")
     help_text = run([binary, "--help"])
-    compatible = all(flag in help_text for flag in FLAGS)
-    return dict(installed=True, compatible=compatible,
-                version=run([binary, "--version"])[:100],
-                message="" if compatible else "This hypr-rdp version lacks the password-file and session-hook interfaces this plugin requires. Update the package.")
+    version_text = run([binary, "--version"])[:100]
+    version = backend_version(version_text)
+    minimum = ".".join(str(part) for part in MINIMUM_BACKEND)
+    if not all(flag in help_text for flag in FLAGS):
+        message = ("This hypr-rdp version lacks the password-file and session-hook interfaces "
+                   "this plugin requires. Update the package.")
+    elif version is None:
+        # Fail closed: an unreadable version cannot be shown to meet the minimum.
+        message = f"Cannot read the hypr-rdp version. Install hypr-rdp {minimum} or newer."
+    elif version < MINIMUM_BACKEND:
+        message = (f"hypr-rdp {minimum} or newer is required: older releases let a single "
+                   "connection that never signs in lock everyone else out. Update the package.")
+    else:
+        message = ""
+    return dict(installed=True, compatible=not message, version=version_text, message=message)
 
 
 def systemctl(*args, check=True):

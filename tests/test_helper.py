@@ -413,13 +413,29 @@ class HelperTests(unittest.TestCase):
         with self.assertRaises(rd.Problem):
             self.app.ensure_certificate()
 
+    def check_with(self, help_text, version_text):
+        with patch.object(rd.shutil, "which", return_value="/usr/bin/hypr-rdp"), \
+             patch.object(rd, "run", side_effect=[help_text, version_text]):
+            return rd.check_backend()
+
     def test_backend_capability_gate_rejects_old_release(self):
-        with patch.object(rd.shutil, "which", return_value="/usr/bin/hypr-rdp"), \
-             patch.object(rd, "run", side_effect=["--output --password --config", "hypr-rdp 0.1.5"]):
-            self.assertFalse(rd.check_backend()["compatible"])
-        with patch.object(rd.shutil, "which", return_value="/usr/bin/hypr-rdp"), \
-             patch.object(rd, "run", side_effect=[" ".join(rd.FLAGS), "hypr-rdp test"]):
-            self.assertTrue(rd.check_backend()["compatible"])
+        self.assertFalse(self.check_with("--output --password --config", "hypr-rdp 0.1.8")["compatible"])
+
+    def test_backend_older_than_the_minimum_is_refused(self):
+        flags = " ".join(rd.FLAGS)
+        # 0.1.6 and 0.1.7 already have every interface, so only the version keeps them out.
+        for version in ("hypr-rdp 0.1.5", "hypr-rdp 0.1.6", "hypr-rdp 0.1.7", "hypr-rdp 0.0.99"):
+            with self.subTest(version=version):
+                result = self.check_with(flags, version)
+                self.assertFalse(result["compatible"])
+                self.assertIn("0.1.8 or newer", result["message"])
+        for version in ("hypr-rdp 0.1.8", "hypr-rdp 0.1.10", "hypr-rdp 0.2.0", "hypr-rdp 1.0.0-rc1"):
+            with self.subTest(version=version):
+                self.assertTrue(self.check_with(flags, version)["compatible"])
+        # An unreadable version cannot be shown to meet the minimum, so it fails closed.
+        for version in ("hypr-rdp test", "", "hypr-rdp 0.1"):
+            with self.subTest(version=repr(version)):
+                self.assertFalse(self.check_with(flags, version)["compatible"])
 
     def test_restart_after_closed_connection_and_reject_live_listener(self):
         self.configured()
