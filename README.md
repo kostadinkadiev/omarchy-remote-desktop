@@ -55,6 +55,11 @@ omarchy plugin add https://github.com/kostadinkadiev/omarchy-remote-desktop.git 
 The first command builds `hypr-rdp` from source and can take several minutes. If
 you skip it, the panel offers the same step as **Install RDP backend**.
 
+Upgrading from 0.4 or earlier, which built its own backend package: run
+`omarchy pkg drop omarchy-remote-desktop-backend` first, or use **Install RDP
+backend**, which does both. Otherwise Omarchy treats the old package as the
+backend and installs nothing.
+
 Requirements: Omarchy's Quickshell shell, Hyprland 0.54+, Python 3.10+, systemd
 user services, OpenSSL, iproute2 and `hypr-rdp` 0.1.8 or newer on PATH.
 The backend also requires its normal graphics/capture and audio dependencies.

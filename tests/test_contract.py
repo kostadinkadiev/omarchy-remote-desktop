@@ -1,7 +1,9 @@
 import json
+import os
 from pathlib import Path
-import subprocess
 import re
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -113,14 +115,43 @@ class ContractTests(unittest.TestCase):
                 self.assertRegex(source[use.end():use.end() + 4], r"^\s*=[^=]")
             self.assertNotIn(".paste()", source)
 
+    def install_command(self):
+        panel = (ROOT / "Panel.qml").read_text()
+        match = re.search(r'"omarchy", "launch", "terminal", "--", "sh", "-c",\s*"([^"]+)"', panel)
+        self.assertIsNotNone(match, "install action not found")
+        return match.group(1)
+
     def test_documented_installation_installs_the_backend_first(self):
         # The marketplace lists this plugin as manual setup with a note pointing at
         # these instructions, because adding the plugin alone yields no backend.
         readme = (ROOT / "README.md").read_text()
         section = readme[readme.index("## Install the plugin"):readme.index("## Connect")]
         self.assertLess(section.index("omarchy pkg aur add hypr-rdp"), section.index("omarchy plugin add"))
-        # The panel's own install action runs the same command.
-        self.assertIn('"omarchy", "pkg", "aur", "add", "hypr-rdp"', (ROOT / "Panel.qml").read_text())
+        self.assertIn("omarchy pkg drop omarchy-remote-desktop-backend", section)
+        # A fixed string: nothing external is interpolated into the shell command.
+        self.assertEqual(self.install_command(),
+                         "omarchy pkg drop omarchy-remote-desktop-backend && omarchy pkg aur add hypr-rdp")
+
+    def test_install_action_replaces_the_former_backend_package_before_installing(self):
+        # The package earlier versions built provides hypr-rdp, so Omarchy's helper
+        # would otherwise treat the backend as installed and do nothing. Run the
+        # exact shipped command against a stand-in omarchy that records its calls.
+        with tempfile.TemporaryDirectory() as temporary:
+            bindir = Path(temporary)
+            log = bindir / "calls"
+            fake = bindir / "omarchy"
+            fake.write_text('#!/bin/sh\necho "$*" >> "$CALL_LOG"\n'
+                            '[ "$1 $2" = "pkg drop" ] && exit "${DROP_STATUS:-0}"\nexit 0\n')
+            fake.chmod(0o755)
+            env = {**os.environ, "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}", "CALL_LOG": str(log)}
+            subprocess.run(["sh", "-c", self.install_command()], env=env, check=True)
+            self.assertEqual(log.read_text().splitlines(),
+                             ["pkg drop omarchy-remote-desktop-backend", "pkg aur add hypr-rdp"])
+            # If removing the old package fails, nothing is installed over it.
+            log.unlink()
+            result = subprocess.run(["sh", "-c", self.install_command()], env={**env, "DROP_STATUS": "1"})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(log.read_text().splitlines(), ["pkg drop omarchy-remote-desktop-backend"])
 
     def test_setup_never_places_password_in_command_array(self):
         service = (ROOT / "Service.qml").read_text()

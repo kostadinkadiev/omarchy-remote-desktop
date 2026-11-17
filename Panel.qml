@@ -226,7 +226,13 @@ Ui.Panel {
                             DesktopButton {
                                 text: "Install RDP backend"
                                 enabled: !root.busy
-                                onClicked: Quickshell.execDetached(["omarchy", "launch", "terminal", "--", "omarchy", "pkg", "aur", "add", "hypr-rdp"])
+                                // Earlier versions of this plugin built their own backend package, which
+                                // declares that it provides hypr-rdp. Omarchy's AUR helper then treats
+                                // hypr-rdp as installed and silently does nothing, leaving a backend
+                                // check_backend refuses. Drop that plugin-owned package first; on a fresh
+                                // machine the drop matches nothing. The command is a fixed string.
+                                onClicked: Quickshell.execDetached(["omarchy", "launch", "terminal", "--", "sh", "-c",
+                                    "omarchy pkg drop omarchy-remote-desktop-backend && omarchy pkg aur add hypr-rdp"])
                             }
                             DesktopButton { text: "Check again"; enabled: !root.busy; onClicked: root.backend.execute("check") }
                         }

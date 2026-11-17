@@ -321,7 +321,8 @@ def check_backend():
         message = f"Cannot read the hypr-rdp version. Install hypr-rdp {minimum} or newer."
     elif version < MINIMUM_BACKEND:
         message = (f"hypr-rdp {minimum} or newer is required: older releases let a single "
-                   "connection that never signs in lock everyone else out. Update the package.")
+                   "connection that never signs in lock everyone else out. "
+                   "Use Install RDP backend to replace it.")
     else:
         message = ""
     return dict(installed=True, compatible=not message, version=version_text, message=message)

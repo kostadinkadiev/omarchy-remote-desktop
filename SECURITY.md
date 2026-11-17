@@ -70,8 +70,10 @@ start. Never bypass certificate checks or trust a changed identity without revie
 
 All owned labels use plain-text rendering. Monitor IDs and credential names are
 validated, and external data/commands have byte limits and timeouts. Control
-operations use argv arrays. Only the backend's documented session hooks use a
-shell, with internally generated, quoted callback arguments and a per-run ID.
+operations use argv arrays. Only two things use a shell: the backend's
+documented session hooks, with internally generated, quoted callback arguments
+and a per-run ID; and the explicit backend-install terminal action, a fixed
+string with nothing interpolated.
 Callbacks carry no password and are ignored after that backend generation ends.
 
 The shell never reads the clipboard. Qt's native paste fetches it synchronously
@@ -109,7 +111,12 @@ before local desktop login and while the machine sleeps.
 ## Dependencies and reporting
 
 The backend is not bundled, built or vendored here. Installing it is an explicit
-terminal action that hands `hypr-rdp` to Omarchy's own AUR helper; this plugin
+terminal action that hands `hypr-rdp` to Omarchy's own AUR helper, after
+removing `omarchy-remote-desktop-backend`, the package earlier versions of this
+plugin built, by its exact name. That package declares that it provides
+`hypr-rdp`, so without removing it the helper would treat the backend as
+installed and do nothing. Nothing else is removed, and on a machine that never
+had it the step matches nothing; this plugin
 ships no installer, no build recipe and no privileged command, and never installs
 anything on its own. Never add a curl-to-shell installer, execute a moving Git
 checkout, or run a package manager outside that explicit action.
