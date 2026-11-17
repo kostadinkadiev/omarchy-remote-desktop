@@ -54,6 +54,16 @@ binding, router forwarding, firewall edits, SSH enabling or VPN setup occurs.
 RFC1918 and carrier-grade NAT ranges are accepted; range membership alone is not
 proof that a network is trusted. Users must apply suitable firewall/VPN policies.
 
+Restricting who can reach the port matters beyond authentication. On the
+previously pinned backend build, a single TCP connection that never
+authenticates blocked every valid login for as long as it stayed open, and the
+server never timed it out, so any peer able to reach the port could keep the
+owner out without credentials. `tests/backend-smoke <binary> --live` reproduces
+this against a localhost listener. Upstream has since reworked connection
+handling and this has not yet been re-measured on 0.1.8. Until it is, allow only
+the intended client through your firewall or VPN policy (for Tailscale, an ACL
+naming that device).
+
 A persistent self-signed RSA certificate secures transport; users compare its
 SHA-256 fingerprint on first connection. Expired or partial certificates block
 start. Never bypass certificate checks or trust a changed identity without review.
@@ -63,6 +73,20 @@ validated, and external data/commands have byte limits and timeouts. Control
 operations use argv arrays. Only the backend's documented session hooks use a
 shell, with internally generated, quoted callback arguments and a per-run ID.
 Callbacks carry no password and are ignored after that backend generation ends.
+
+The shell never reads the clipboard. Qt's native paste fetches it synchronously
+inside the one shell process shared by every plugin, with no aggregate size or
+time limit, so a hostile clipboard owner could stall the whole shell during a
+paste. Every native path is closed on the plugin's text fields: paste shortcuts,
+middle-click primary selection, and the context menu by mouse or Menu key. The
+username and password fields instead ask the helper, which reads the clipboard
+with `wl-paste` in a child process killed past 1 KiB or one second; the worst
+case is a refused paste. Qt releases through at least 6.12.0 also fetch the full
+clipboard payload on every clipboard change, for any writable text input, to
+decide whether pasting is possible (fixed upstream in qtdeclarative `ef692a52`,
+cherry-picked as `bcbfae6`). The plugin's fields are therefore read-only except
+while the setup form is open in front of the user, which is the one window that
+remains on an unfixed Qt.
 
 ## Service lifecycle
 
@@ -90,11 +114,14 @@ ships no installer, no build recipe and no privileged command, and never install
 anything on its own. Never add a curl-to-shell installer, execute a moving Git
 checkout, or run a package manager outside that explicit action.
 
-That package is maintained by a third party in the AUR rather than pinned to a
-commit reviewed here, which is weaker provenance than a pinned build: review it as
-you would any AUR package. What the plugin does guarantee is capability, not
-origin — it inspects the binary for the password-file and session-hook interfaces
-and refuses to run anything lacking them.
+The AUR package is maintained by the upstream hypr-rdp author. Its recipe for
+0.1.8 fetches the upstream release tag `v0.1.8` (commit `2c6be385`) and pins its
+SHA-256, `755903df…a3efa`; that archive was re-downloaded independently and
+matched on 2026-11-17. This is not a pin reviewed in this repository, so a later
+AUR update could change what is installed: review the recipe when updating, as
+with any AUR package. What the plugin itself guarantees is capability, not
+origin — it inspects the binary for the password-file and session-hook
+interfaces and refuses to run anything lacking them.
 
 Report security concerns privately to the repository owner. Do not put passwords,
 private keys, desktop captures or exploit details in public issues.

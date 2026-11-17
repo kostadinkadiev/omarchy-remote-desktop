@@ -140,6 +140,35 @@ class HelperTests(unittest.TestCase):
         mirrored = self.app.backend_args({**GOOD, "audio": True}, "generation")
         self.assertEqual(mirrored[mirrored.index("--audio-mode") + 1], "mirror")
 
+    def test_backend_always_requires_credentials_in_every_display_mode(self):
+        # Without credentials the backend drops from NLA to TLS-only with no network
+        # authentication, so every launch must carry both, whatever the display mode.
+        self.configured()
+        virtual = rd.validate({**{k: v for k, v in GOOD.items() if k != "output"},
+                               "mode": "virtual", "resolution": "1920x1080", "scale": 1})
+        for conf in (rd.validate(GOOD), virtual):
+            with self.subTest(mode=conf["mode"]):
+                args = self.app.backend_args(conf, "generation")
+                self.assertEqual(args[args.index("--username") + 1], "alice")
+                self.assertEqual(args[args.index("--password-file") + 1], str(self.app.data / "password"))
+                self.assertNotIn("--password", args)
+                self.assertNotIn("--auth-mode", args)
+                self.assertNotIn(PASSWORD, " ".join(args))
+                self.assertEqual(args[args.index("--bind") + 1], "192.168.1.5:3389")
+                self.assertFalse(any(a.startswith(("0.0.0.0", "[::]")) for a in args))
+
+    def test_no_stored_secret_the_backend_would_treat_as_absent_can_start(self):
+        rd.save_json(self.app.config, {**GOOD, "enabled": True})
+        path = self.app.data / "password"
+        for stored in (None, "", "\n", "short", "x" * 8 + "\x00"):
+            with self.subTest(stored=repr(stored)):
+                if path.exists():
+                    path.unlink()
+                if stored is not None:
+                    rd.write_file(path, stored)
+                with self.assertRaises(rd.Problem):
+                    self.app.credential()
+
     def test_export_keeps_authentication_and_no_secret(self):
         self.configured()
         output = self.app.export()
@@ -305,6 +334,41 @@ class HelperTests(unittest.TestCase):
         self.assertTrue(keep.exists())
         self.assertFalse(self.app.config.exists())
         self.assertFalse((self.app.data / "password").exists())
+
+    def fake_wl_paste(self, body):
+        """Put a stand-in clipboard owner first on PATH; body is Python source."""
+        bindir = self.base / "fakebin"
+        bindir.mkdir(exist_ok=True)
+        tool = bindir / "wl-paste"
+        tool.write_text(f"#!{sys.executable}\nimport itertools, sys, time\n{body}\n")
+        tool.chmod(0o755)
+        return patch.dict(os.environ, {"PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}"})
+
+    def test_clipboard_text_keeps_spaces_and_rejects_control_characters(self):
+        with self.fake_wl_paste("sys.stdout.write(' pass word \\n')"):
+            self.assertEqual(rd.clipboard_text(), {"text": " pass word "})
+        with self.fake_wl_paste("sys.stdout.write('crlf\\r\\n')"):
+            self.assertEqual(rd.clipboard_text(), {"text": "crlf"})
+        # An empty clipboard makes wl-paste exit non-zero; that is not an error.
+        with self.fake_wl_paste("sys.exit(1)"):
+            self.assertEqual(rd.clipboard_text(), {"text": ""})
+        for body in ("sys.stdout.write('a\\x07b')", "sys.stdout.write('one\\ntwo')"):
+            with self.subTest(body=body), self.fake_wl_paste(body), self.assertRaises(rd.Problem):
+                rd.clipboard_text()
+
+    def test_hostile_clipboard_owner_cannot_flood_or_stall_the_reader(self):
+        owners = {
+            "flood": "sys.stdout.write('x' * 50_000_000)",
+            # Under the byte limit forever: only the aggregate deadline stops it.
+            "drip": "for _ in itertools.count():\n    sys.stdout.write('x'); sys.stdout.flush(); time.sleep(0.2)",
+            "silent": "time.sleep(30)",
+        }
+        for name, body in owners.items():
+            with self.subTest(owner=name), self.fake_wl_paste(body):
+                started = time.monotonic()
+                with self.assertRaises(rd.Problem):
+                    rd.clipboard_text()
+                self.assertLess(time.monotonic() - started, 3)
 
     def test_output_is_bounded_at_producer_and_timed(self):
         with self.assertRaises(rd.Problem):

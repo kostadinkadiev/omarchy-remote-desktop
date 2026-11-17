@@ -77,6 +77,51 @@ class ContractTests(unittest.TestCase):
             for word in (b"su" + b"do ", b"pk" + b"exec"):
                 self.assertNotIn(word, body, f"{name} reintroduces a privilege reference")
 
+    def test_every_text_input_refuses_native_paste(self):
+        # Qt's native paste reads the clipboard synchronously in the shared shell
+        # with no size or time limit; GuardedField closes every path to it.
+        source = (ROOT / "Panel.qml").read_text()
+        component = source[source.index("component GuardedField: Ui.TextField {"):]
+        component = component[:component.index("\n    component ", 1)]
+        for defence in ("readOnly: !active", "ContextMenu.menu: null",
+                        "event.matches(StandardKey.Paste)", "event.accepted = true",
+                        "event.key === Qt.Key_Menu", "Qt.MiddleButton | Qt.RightButton"):
+            self.assertIn(defence, component)
+        # No raw native text input may bypass it.
+        self.assertEqual(source.count("Ui.TextField {"), 1)
+        self.assertNotIn("Ui.NumberField", source)
+        self.assertNotIn("TextInput {", source)
+        for name in ("username", "password", "port"):
+            block = re.search(r"GuardedField\s*\{\s*id: " + name + r"\b(.*?)\n\s*\}", source, re.S)
+            self.assertIsNotNone(block, name)
+            self.assertIn("active: root.formActive", block.group(1))
+        self.assertIn("pasteAllowed: false", re.search(r"id: port\b.*?\n\s*\}", source, re.S).group(0))
+        # The Qt-level test exercises the same handler statements.
+        mirror = (ROOT / "tests/qml/tst_pasteguard.qml").read_text()
+        for statement in ("event.matches(StandardKey.Paste)", "event.key === Qt.Key_Menu",
+                          "Qt.MiddleButton | Qt.RightButton", "readOnly: !active"):
+            self.assertIn(statement, mirror)
+
+    def test_clipboard_is_only_read_through_the_bounded_helper(self):
+        service = (ROOT / "Service.qml").read_text()
+        panel = (ROOT / "Panel.qml").read_text()
+        self.assertIn('command: ["/usr/bin/python3", root.helper, "clipboard"]', service)
+        for source in (service, panel):
+            # Writing the clipboard (Copy address) is fine; reading it is the same
+            # synchronous fetch as native paste, so every use must be an assignment.
+            for use in re.finditer(r"clipboardText", source):
+                self.assertRegex(source[use.end():use.end() + 4], r"^\s*=[^=]")
+            self.assertNotIn(".paste()", source)
+
+    def test_documented_installation_installs_the_backend_first(self):
+        # The marketplace lists this plugin as manual setup with a note pointing at
+        # these instructions, because adding the plugin alone yields no backend.
+        readme = (ROOT / "README.md").read_text()
+        section = readme[readme.index("## Install the plugin"):readme.index("## Connect")]
+        self.assertLess(section.index("omarchy pkg aur add hypr-rdp"), section.index("omarchy plugin add"))
+        # The panel's own install action runs the same command.
+        self.assertIn('"omarchy", "pkg", "aur", "add", "hypr-rdp"', (ROOT / "Panel.qml").read_text())
+
     def test_setup_never_places_password_in_command_array(self):
         service = (ROOT / "Service.qml").read_text()
         self.assertIn('worker.command = ["/usr/bin/python3", helper, command]', service)

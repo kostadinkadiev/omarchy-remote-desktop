@@ -37,6 +37,8 @@ PASSWORD_MINIMUM = 8
 # Capture rates the backend is offered. Higher costs encoder throughput, which
 # is the limit on integrated graphics long before bandwidth is.
 FRAME_RATES = (24, 30, 45, 60)
+# Longest pasted value any field accepts is the 256-character password.
+CLIPBOARD_LIMIT = 1024
 ROOT = Path(__file__).resolve().parent.parent
 FLAGS = ("--password-file", "--output", "--cert", "--key", "--config",
          "--on-session-start", "--on-session-end", "--audio-mode", "--egfx-codec")
@@ -46,7 +48,7 @@ class Problem(Exception):
     """An actionable message safe to show without subprocess output or secrets."""
 
 
-def run(args, timeout=3, limit=MAX_IO, check=True):
+def run(args, timeout=3, limit=MAX_IO, check=True, strip=True):
     """Bound output while it is produced, including children holding pipes open."""
     try:
         proc = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
@@ -74,7 +76,8 @@ def run(args, timeout=3, limit=MAX_IO, check=True):
             proc.wait(timeout=max(0.01, deadline - time.monotonic()))
         if check and proc.returncode:
             raise Problem(f"{Path(args[0]).name} failed. Check the service or installation.")
-        return bytes(data).decode("utf-8", errors="replace").strip()
+        text = bytes(data).decode("utf-8", errors="replace")
+        return text.strip() if strip else text
     except subprocess.TimeoutExpired:
         raise Problem(f"{Path(args[0]).name} took too long. Try again.") from None
     finally:
@@ -233,6 +236,25 @@ def validate_display(mode, values):
         raise Problem("Display scale must be a number between 1 and 3.")
     # Keep the stored value exact so the backend argument is reproducible.
     return resolution, int(scale) if float(scale).is_integer() else round(float(scale), 2)
+
+
+def clipboard_text():
+    """Read clipboard text outside the shell process, within a byte and time budget.
+
+    The clipboard owner decides how much it sends and how slowly. Qt's own paste
+    reads it synchronously inside the shell process shared by every plugin, with
+    no aggregate limit, so a hostile owner could stall the whole shell. Here the
+    read happens in a child that run() kills past CLIPBOARD_LIMIT bytes or one
+    second, so the worst case is a refused paste.
+    """
+    text = run(["wl-paste", "--no-newline", "--type", "text"], timeout=1,
+               limit=CLIPBOARD_LIMIT, check=False, strip=False)
+    # Keep surrounding spaces, which a password may contain, but drop the single
+    # line ending that copying a line usually adds.
+    text = text[:-2] if text.endswith("\r\n") else text[:-1] if text.endswith("\n") else text
+    if any(ord(char) < 32 or ord(char) == 127 for char in text):
+        raise Problem("Clipboard text contains line breaks or control characters.")
+    return {"text": text}
 
 
 def validate_password(password):
@@ -718,7 +740,8 @@ def input_json():
 def main():
     parser = argparse.ArgumentParser(description="Remote Desktop for Omarchy")
     parser.add_argument("command", choices=("check", "inventory", "status", "generate-password", "configure",
-                                            "enable", "disable", "disconnect", "export", "remove", "supervise", "event"))
+                                            "enable", "disable", "disconnect", "export", "remove", "supervise", "event",
+                                            "clipboard"))
     parser.add_argument("event_args", nargs="*")
     args = parser.parse_args()
     app = App()
@@ -738,6 +761,8 @@ def main():
                 result["environmentError"] = str(error)
         elif args.command == "inventory":
             result = inventory()
+        elif args.command == "clipboard":
+            result = clipboard_text()
         elif args.command == "generate-password":
             result = {"password": secrets.token_urlsafe(24)}
         elif args.command == "configure":

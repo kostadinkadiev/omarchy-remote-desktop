@@ -20,6 +20,7 @@ Item {
     readonly property string helper: Model.localPath(Qt.resolvedUrl("bin/remote-desktopctl"))
     signal passwordGenerated(string password)
     signal configurationSaved()
+    signal clipboardRead(string text)
 
     function execute(command, data) {
         if (worker.running) return
@@ -38,6 +39,14 @@ Item {
         savingSettings = true
         enableAfterSave = enable
         execute("configure", data)
+    }
+
+    // Paste never reads the clipboard in this process: the helper reads it in a
+    // child with a byte and time budget. Separate from the status worker so a
+    // background refresh cannot swallow an explicit paste.
+    function readClipboard() {
+        if (clipboard.running) return
+        clipboard.running = true
     }
 
     function refresh() {
@@ -94,6 +103,29 @@ Item {
             stdinEnabled = true
             root.payload = ""
             root.completed(Model.decode(output.text))
+        }
+    }
+
+    Process {
+        id: clipboard
+        command: ["/usr/bin/python3", root.helper, "clipboard"]
+        stdout: StdioCollector { id: clipboardOutput; waitForEnd: true }
+        onStarted: clipboardDeadline.restart()
+        onExited: {
+            clipboardDeadline.stop()
+            var result = Model.decode(clipboardOutput.text)
+            if (result.ok) root.clipboardRead(String(result.text || ""))
+            else root.error = String(result.error || "Could not read the clipboard.").slice(0, 300)
+        }
+    }
+
+    // A backstop only: the helper already stops its reader after one second.
+    Timer {
+        id: clipboardDeadline
+        interval: 5000
+        onTriggered: {
+            clipboard.signal(9)
+            root.error = "Reading the clipboard took too long. Type it instead."
         }
     }
 

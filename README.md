@@ -38,15 +38,21 @@ several minutes and several GB of disk the first time.
 
 The plugin checks the binary for the password-file and session-hook interfaces it
 needs and refuses anything that lacks them, whatever its version. Release 0.1.6
-and later provide them; earlier releases do not. The package is maintained in the
-AUR by a third party rather than pinned to a commit reviewed here, so review it
-as you would any AUR package before installing.
+and later provide them; earlier releases do not. The AUR package is maintained by
+the upstream hypr-rdp author and builds a checksum-pinned upstream release tag;
+see [security](SECURITY.md) for its provenance.
 
 ## Install the plugin
 
+Adding the plugin does not install its backend, so do both:
+
 ```sh
+omarchy pkg aur add hypr-rdp
 omarchy plugin add https://github.com/kostadinkadiev/omarchy-remote-desktop.git --enable
 ```
+
+The first command builds `hypr-rdp` from source and can take several minutes. If
+you skip it, the panel offers the same step as **Install RDP backend**.
 
 Requirements: Omarchy's Quickshell shell, Hyprland 0.54+, Python 3.10+, systemd
 user services, OpenSSL, iproute2 and `hypr-rdp` 0.1.6 or newer on PATH.

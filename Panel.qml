@@ -25,6 +25,9 @@ Ui.Panel {
     property bool instructions: false
     property bool confirmRemove: false
     property bool counted: false
+    // Text fields are writable only while the form is in front of the user; see GuardedField.
+    readonly property bool formActive: opened && (editing || !snapshot.configured)
+    property var pasteTarget: null
     property string chosenOutput: ""
     property string chosenAddress: ""
     property string chosenMode: "monitor"
@@ -42,7 +45,7 @@ Ui.Panel {
         var config = snapshot.settings || {}
         username.text = config.username || Quickshell.env("USER") || "user"
         password.text = ""
-        port.value = config.port || 3389
+        port.text = String(config.port || 3389)
         audio.checked = config.audio === true
         chosenOutput = config.output || ""
         chosenAddress = config.address || ""
@@ -53,13 +56,32 @@ Ui.Panel {
         restoreChoices()
     }
 
+    function pasteInto(field) {
+        if (!backend || !field || field.readOnly) return
+        pasteTarget = field
+        backend.readClipboard()
+    }
+
+    // Insert where native paste would have: over the selection, within maximumLength.
+    function insertPasted(text) {
+        var field = pasteTarget
+        pasteTarget = null
+        if (!field || field.readOnly || !formActive) return
+        var start = Math.min(field.selectionStart, field.selectionEnd)
+        var end = Math.max(field.selectionStart, field.selectionEnd)
+        var room = field.maximumLength - (field.text.length - (end - start))
+        if (room <= 0) return
+        field.remove(start, end)
+        field.insert(start, String(text).slice(0, room))
+    }
+
     function save(enable) {
         backend.configure({
             output: monitor.value || "", address: network.value || "",
             mode: displayMode.value || "monitor",
             resolution: resolution.value || "", scale: Number(displayScale.value || 1),
             fps: Number(frameRate.value || 30),
-            username: username.text, password: password.text, port: port.value,
+            username: username.text, password: password.text, port: parseInt(port.text, 10),
             audio: audio.checked
         }, enable)
         password.text = ""
@@ -85,6 +107,7 @@ Ui.Panel {
     Connections {
         target: root.backend
         function onPasswordGenerated(value) { password.text = value; showPassword.checked = true }
+        function onClipboardRead(text) { root.insertPasted(text) }
         function onConfigurationSaved() { root.editing = false; password.text = "" }
     }
 
@@ -374,15 +397,19 @@ Ui.Panel {
                             color: Commons.Color.foreground
                         }
                         Caption { text: root.snapshot.configured ? "Login details" : "Create login details"; textFormat: Text.PlainText; color: Commons.Color.foreground }
-                        Ui.TextField {
+                        GuardedField {
                             id: username
+                            active: root.formActive
+                            onPasteRequested: function(field) { root.pasteInto(field) }
                             Layout.fillWidth: true
                             placeholderText: "Username"
                             maximumLength: 64
                             Accessible.name: "RDP username"
                         }
-                        Ui.TextField {
+                        GuardedField {
                             id: password
+                            active: root.formActive
+                            onPasteRequested: function(field) { root.pasteInto(field) }
                             Layout.fillWidth: true
                             placeholderText: root.snapshot.configured ? "New password (blank keeps current)" : "Password · at least 8 characters"
                             maximumLength: 256
@@ -407,7 +434,17 @@ Ui.Panel {
                             Layout.fillWidth: true
                             RowLayout {
                                 Caption { text: "Port"; textFormat: Text.PlainText; color: Commons.Color.foreground }
-                                Ui.NumberField { id: port; from: 1024; to: 65535; value: 3389; onModified: function(value) { port.value = value }; Accessible.name: "RDP port" }
+                                GuardedField {
+                                    id: port
+                                    active: root.formActive
+                                    pasteAllowed: false
+                                    text: "3389"
+                                    maximumLength: 5
+                                    validator: IntValidator { bottom: 1; top: 65535 }
+                                    inputMethodHints: Qt.ImhDigitsOnly
+                                    Layout.preferredWidth: Style.space(110)
+                                    Accessible.name: "RDP port"
+                                }
                             }
                             Ui.Toggle { id: audio; label: "Share audio"; description: "Play on this computer and the remote device"; Layout.fillWidth: true; onClicked: checked = !checked }
                         }
@@ -475,6 +512,37 @@ Ui.Panel {
             }
         }
     }
+    // Qt's native paste reads the clipboard synchronously inside the shell process
+    // shared by every plugin, with no limit on size or time, so a hostile clipboard
+    // owner could stall the whole shell. Each native path is closed here: paste
+    // shortcuts, middle-click primary selection, and the context menu by mouse or
+    // Menu key. Fields that allow pasting ask the helper's bounded, out-of-process
+    // reader instead. Inactive fields are read-only because Qt also fetches the
+    // whole clipboard payload on every clipboard change, for any writable text
+    // input, just to decide whether pasting is possible.
+    component GuardedField: Ui.TextField {
+        id: guarded
+        property bool active: false
+        property bool pasteAllowed: true
+        signal pasteRequested(var field)
+        readOnly: !active
+        ContextMenu.menu: null
+        Keys.onPressed: function(event) {
+            if (event.matches(StandardKey.Paste)) {
+                event.accepted = true
+                if (guarded.pasteAllowed && !guarded.readOnly) guarded.pasteRequested(guarded)
+            } else if (event.key === Qt.Key_Menu) {
+                event.accepted = true
+            }
+        }
+        MouseArea {
+            anchors.fill: parent
+            z: 2
+            acceptedButtons: Qt.MiddleButton | Qt.RightButton
+            onPressed: function(mouse) { mouse.accepted = true }
+        }
+    }
+
     component DesktopButton: Ui.Button {
         focusable: true
         bordered: false

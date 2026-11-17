@@ -5,6 +5,7 @@ import contextlib
 import os
 from pathlib import Path
 import secrets
+import shutil
 import socket
 import struct
 import subprocess
@@ -17,11 +18,14 @@ import remote_desktop as rd
 
 parser = argparse.ArgumentParser()
 parser.add_argument("binary", type=Path)
-parser.add_argument("--live", action="store_true", help="brief localhost NLA negotiation against the current desktop")
+parser.add_argument("--live", action="store_true",
+                    help="localhost NLA negotiation and, with xfreerdp3 installed, authentication checks")
 args = parser.parse_args()
 binary = str(args.binary.resolve())
 help_text = rd.run([binary, "--help"])
 assert all(flag in help_text for flag in rd.FLAGS), "Required backend interfaces missing"
+# Results describe the backend build under test, so name it in the output.
+print("Backend under test:", rd.run([binary, "--version"]))
 
 with tempfile.TemporaryDirectory(prefix="rdp-backend-smoke-") as temporary:
     base = Path(temporary)
@@ -74,6 +78,49 @@ with tempfile.TemporaryDirectory(prefix="rdp-backend-smoke-") as temporary:
         assert not response or (len(response) >= 19 and response[-8] == 3), \
             "Unexpected non-NLA negotiation response: " + response.hex()
         print("Localhost listener and mandatory NLA negotiation passed; no desktop session established")
+
+        client = shutil.which("xfreerdp3")
+        if not client:
+            print("xfreerdp3 is not installed: authentication checks skipped")
+        else:
+            secret = (app.data / "password").read_text()
+
+            def authenticate(*credentials, timeout=20):
+                """Exit status of an authentication-only attempt, or None if it never ended.
+
+                Credentials go to FreeRDP on stdin, never as its command line. Nothing
+                past authentication runs, so no desktop session is ever established.
+                """
+                options = [f"/v:127.0.0.1:{port}", *credentials, "+auth-only", "/cert:ignore", "/log-level:OFF"]
+                try:
+                    return subprocess.run([client, "/args-from:stdin"], input="\n".join(options) + "\n",
+                                          text=True, capture_output=True, timeout=timeout).returncode
+                except subprocess.TimeoutExpired:
+                    return None
+
+            cases = (("configured user and password", ["/u:test-user", f"/p:{secret}"], True),
+                     ("wrong user", ["/u:someone-else", f"/p:{secret}"], False),
+                     ("wrong password", ["/u:test-user", "/p:" + secrets.token_urlsafe(24)], False),
+                     ("empty password", ["/u:test-user", "/p:"], False),
+                     ("no credentials", [], False))
+            for name, credentials, accepted in cases:
+                status = authenticate(*credentials)
+                assert status is not None, f"{name}: the attempt never finished"
+                assert (status == 0) == accepted, f"{name}: unexpected exit status {status}"
+                print(f"  {name}: {'accepted' if accepted else 'rejected'} (exit {status})")
+            print("Authentication accepted only the configured user and password")
+
+            # A peer that opens a connection and never authenticates. The plugin cannot
+            # change this; the result is reported so it is measured rather than assumed.
+            with socket.create_connection(("127.0.0.1", port), timeout=3):
+                held = authenticate("/u:test-user", f"/p:{secret}", timeout=10)
+            if held is None:
+                print("FINDING: an idle connection that never authenticated blocked a valid login"
+                      " for the full 10 s check (upstream behaviour; see docs/COMPATIBILITY.md)")
+            else:
+                print(f"An idle unauthenticated connection did not block a valid login (exit {held})")
+            assert authenticate("/u:test-user", f"/p:{secret}") == 0, "Valid login failed once the idle peer left"
+            print("A valid login succeeds again once the idle peer disconnects")
     finally:
         if child.poll() is None:
             child.terminate()
